@@ -111,6 +111,9 @@ struct ClothingEditorForm: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var imageImportStatus: ClothingImageImportStatus?
     @State private var imageImportFailureMessage: String?
+    @State private var isGeneratingWhiteBackground = false
+    @State private var whiteBackgroundMessage: String?
+    @State private var whiteBackgroundFailureMessage: String?
     @State private var imageColorSuggestion: ClothingImageColorSuggestion?
     @State private var imageCategorySuggestion: ClothingImageCategorySuggestion?
     @State private var didAutoApplyImageColor = false
@@ -188,11 +191,27 @@ struct ClothingEditorForm: View {
                     #endif
 
                     Button {
+                        Task {
+                            await generateWhiteBackgroundImage()
+                        }
+                    } label: {
+                        Label(isGeneratingWhiteBackground ? "生成中" : "生成白底图", systemImage: "wand.and.stars")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .disabled(draft.imageData == nil || isGeneratingWhiteBackground || !ClothingBackgroundImageProcessor.isWhiteBackgroundGenerationAvailable)
+                    .buttonStyle(HomePressableButtonStyle())
+                    .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
+
+                    Button {
                         draft.imageData = nil
                         draft.thumbnailData = nil
                         selectedPhotoItem = nil
                         imageImportStatus = nil
                         imageImportFailureMessage = nil
+                        whiteBackgroundMessage = nil
+                        whiteBackgroundFailureMessage = nil
                         imageColorSuggestion = nil
                         imageCategorySuggestion = nil
                         didAutoApplyImageColor = false
@@ -208,7 +227,26 @@ struct ClothingEditorForm: View {
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
                 }
 
-                if let imageImportFailureMessage {
+                if isGeneratingWhiteBackground {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("正在本地生成白底图，照片不会上传。")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+                } else if let whiteBackgroundFailureMessage {
+                    Label(whiteBackgroundFailureMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+                } else if let whiteBackgroundMessage {
+                    imageStatusRow(text: whiteBackgroundMessage, systemImage: "wand.and.stars")
+                } else if let imageImportFailureMessage {
                     Label(imageImportFailureMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.orange)
@@ -410,6 +448,8 @@ struct ClothingEditorForm: View {
         draft.imageData = optimizedData
         draft.thumbnailData = thumbnailData
         imageImportFailureMessage = nil
+        whiteBackgroundMessage = nil
+        whiteBackgroundFailureMessage = nil
         imageImportStatus = ClothingImageImportStatus(
             originalByteCount: imageData.count,
             storedByteCount: optimizedData.count
@@ -429,6 +469,33 @@ struct ClothingEditorForm: View {
         if let categorySuggestion, !hasUserEditedCategory {
             draft.category = categorySuggestion.categoryName
             didAutoApplyImageCategory = true
+        }
+    }
+
+    private func generateWhiteBackgroundImage() async {
+        guard let imageData = draft.imageData, !isGeneratingWhiteBackground else { return }
+
+        isGeneratingWhiteBackground = true
+        whiteBackgroundMessage = nil
+        whiteBackgroundFailureMessage = nil
+        defer { isGeneratingWhiteBackground = false }
+
+        do {
+            let processedData = try await Task.detached(priority: .userInitiated) {
+                try ClothingBackgroundImageProcessor.whiteBackgroundJPEGData(from: imageData)
+            }.value
+            draft.imageData = processedData
+            draft.thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: processedData) ?? processedData
+            whiteBackgroundMessage = "已生成白底图，用于衣橱展示和搭配选择。"
+            imageImportStatus = ClothingImageImportStatus(
+                originalByteCount: imageData.count,
+                storedByteCount: processedData.count
+            )
+            imageImportFailureMessage = nil
+        } catch let error as ClothingBackgroundImageProcessingError {
+            whiteBackgroundFailureMessage = error.userMessage
+        } catch {
+            whiteBackgroundFailureMessage = "白底图生成失败，请重试或保留原图。"
         }
     }
 
