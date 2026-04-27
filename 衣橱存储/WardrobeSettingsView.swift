@@ -9,6 +9,7 @@ struct WardrobeSettingsView: View {
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
     @Query(sort: \OutfitPlan.date) private var plans: [OutfitPlan]
     @AppStorage(WardrobeOnboardingState.storageKey) private var hasSeenOnboarding = false
+    @AppStorage(AppLanguage.storageKey) private var appLanguageRawValue = AppLanguage.chinese.rawValue
     @State private var showsBackupExporter = false
     @State private var showsBackupImporter = false
     @State private var showsOnboarding = false
@@ -32,11 +33,16 @@ struct WardrobeSettingsView: View {
         !items.isEmpty || !outfits.isEmpty || !plans.isEmpty
     }
 
+    private var currentAppLanguage: AppLanguage {
+        AppLanguage.value(for: appLanguageRawValue)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
                     settingsHeroSection
+                    languageSection
                     onboardingSection
                     dataHealthSection
                     backupSection
@@ -383,6 +389,28 @@ struct WardrobeSettingsView: View {
             }
             .disabled(!canLoadSampleData)
             .buttonStyle(HomePressableButtonStyle())
+        }
+    }
+
+    private var languageSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            settingsSectionHeader(title: "显示语言", subtitle: currentAppLanguage.displayName)
+
+            Picker("App 语言", selection: $appLanguageRawValue) {
+                ForEach(AppLanguage.allCases) { language in
+                    Text(language.displayName).tag(language.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(12)
+            .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+
+            Label("语言切换会立即影响日期、日历、时间等系统控件；全量四语文案会按模块继续本地化。", systemImage: "globe.asia.australia.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(14)
+                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
         }
     }
 

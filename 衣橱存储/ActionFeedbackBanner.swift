@@ -57,6 +57,7 @@ struct ActionFeedbackBanner: View {
     var actionTitle: String? = nil
     var onAction: (() -> Void)? = nil
     var onDismiss: (() -> Void)? = nil
+    var autoDismissDelay: Duration? = .seconds(3)
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -95,5 +96,13 @@ struct ActionFeedbackBanner: View {
         .padding(16)
         .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.22))
         .shadow(color: .black.opacity(0.06), radius: 18, y: 10)
+        .task(id: title + message) {
+            guard let autoDismissDelay, actionTitle == nil, let onDismiss else { return }
+            do {
+                try await Task.sleep(for: autoDismissDelay)
+                onDismiss()
+            } catch {
+            }
+        }
     }
 }

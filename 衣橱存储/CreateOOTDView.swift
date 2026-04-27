@@ -287,7 +287,7 @@ struct CreateOOTDView: View {
     }
 
     private func ootdItems(for slot: OOTDSlot) -> [WardrobeItem] {
-        items.filter { slot.categories.contains($0.category) }
+        items.filter { slot.matches($0) }
     }
 
     private func selectedItem(for id: PersistentIdentifier?) -> WardrobeItem? {
@@ -373,6 +373,56 @@ private extension CreateOOTDView {
                 ["配饰", "帽子"]
             }
         }
+
+        func matches(_ item: WardrobeItem) -> Bool {
+            let normalizedName = item.name
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+
+            if conflictNameHints.contains(where: { normalizedName.contains($0) }) {
+                return false
+            }
+
+            if categories.contains(item.category) {
+                return true
+            }
+
+            return nameHints.contains { normalizedName.contains($0) }
+        }
+
+        private var nameHints: [String] {
+            switch self {
+            case .top:
+                ["上衣", "短袖", "长袖", "t恤", "tee", "shirt", "衬衫", "卫衣", "毛衣", "背心", "top"]
+            case .bottom:
+                ["裤", "裙", "牛仔", "pants", "trousers", "jeans", "skirt", "shorts"]
+            case .outerwear:
+                ["外套", "夹克", "风衣", "大衣", "开衫", "jacket", "coat", "outerwear"]
+            case .shoes:
+                ["鞋", "靴", "sneaker", "shoe", "boot", "loafer"]
+            case .bag:
+                ["包", "背包", "托特", "handbag", "bag", "tote", "backpack"]
+            case .accessory:
+                ["配饰", "帽", "耳", "项链", "戒指", "手表", "围巾", "accessory", "hat", "cap", "scarf", "watch"]
+            }
+        }
+
+        private var conflictNameHints: [String] {
+            switch self {
+            case .top:
+                ["裤", "裙", "鞋", "靴", "包"]
+            case .bottom:
+                ["鞋", "靴", "包"]
+            case .outerwear:
+                ["裤", "裙", "鞋", "靴", "包"]
+            case .shoes:
+                ["裤", "裙", "上衣", "短袖", "长袖", "衬衫", "外套", "包"]
+            case .bag:
+                ["裤", "裙", "鞋", "靴", "上衣", "短袖", "长袖", "衬衫", "外套"]
+            case .accessory:
+                ["裤", "裙", "鞋", "靴", "上衣", "短袖", "长袖", "衬衫", "外套", "包"]
+            }
+        }
     }
 
     static func initialSelection(for item: WardrobeItem?, slot: OOTDSlot) -> PersistentIdentifier? {
@@ -415,9 +465,9 @@ private extension CreateOOTDView {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text(subtitle)
+                Text(selectedItem(for: selectedID.wrappedValue)?.name ?? subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(selectedID.wrappedValue == nil ? Color.secondary : Color.primary.opacity(0.82))
             }
 
             if items.isEmpty {
@@ -458,6 +508,15 @@ private extension CreateOOTDView {
                                             }
                                         }
                                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                        .overlay(alignment: .topTrailing) {
+                                            if isSelected {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .font(.headline)
+                                                    .symbolRenderingMode(.palette)
+                                                    .foregroundStyle(.white, Color.accentColor)
+                                                    .padding(6)
+                                            }
+                                        }
 
                                     Text(item.name)
                                         .font(.caption.weight(.semibold))
@@ -470,8 +529,12 @@ private extension CreateOOTDView {
                             .buttonStyle(HomePressableButtonStyle())
                             .glassCard(
                                 cornerRadius: HomeMetrics.secondaryRadius,
-                                tint: isSelected ? Color.white.opacity(0.26) : Color.white.opacity(0.12)
+                                tint: isSelected ? Color.accentColor.opacity(0.16) : Color.white.opacity(0.12)
                             )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: HomeMetrics.secondaryRadius, style: .continuous)
+                                    .stroke(isSelected ? Color.accentColor.opacity(0.72) : Color.clear, lineWidth: 2)
+                            }
                         }
                     }
                     .padding(.vertical, 2)

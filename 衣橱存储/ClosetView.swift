@@ -11,6 +11,7 @@ struct ClosetView: View {
     @State private var selectedSortMode: ClosetSortMode = .recent
     @State private var showsAddSheet = false
     @State private var feedback: ActionFeedbackState?
+    @State private var activeOrganizationDetail: ClosetOrganizationDetail?
 
     var body: some View {
         NavigationStack {
@@ -59,6 +60,30 @@ struct ClosetView: View {
                     feedback = ActionFeedbackState(
                         title: "已保存衣物",
                         message: "“\(item.name)”已经加入数字衣橱。"
+                    )
+                }
+            }
+            .sheet(item: $activeOrganizationDetail) { detail in
+                NavigationStack {
+                    ClosetOrganizationDetailView(
+                        detail: detail,
+                        items: organizationItems(for: detail),
+                        coverageRows: organizationSnapshot.categoryRows,
+                        onSelectCategory: { category in
+                            selectedCategory = category
+                            selectedSeason = Self.allSeasonTitle
+                            selectedFocusFilter = .all
+                            searchText = ""
+                            selectedSortMode = .recent
+                            activeOrganizationDetail = nil
+                        },
+                        onDeleted: { deletedName in
+                            feedback = ActionFeedbackState(
+                                title: "已删除衣物",
+                                message: "“\(deletedName)”已从衣橱移除，相关搭配会安全保留缺失状态。",
+                                systemImage: "trash"
+                            )
+                        }
                     )
                 }
             }
@@ -197,7 +222,7 @@ struct ClosetView: View {
                         detail: organizationSnapshot.unusedItemCount == 0 ? "所有单品都已被搭配使用" : "适合继续组合 OOTD",
                         systemImage: "link.badge.plus"
                     ) {
-                        applyFocusFilter(.unused)
+                        activeOrganizationDetail = .unused
                     }
 
                     closetInsightCard(
@@ -206,7 +231,7 @@ struct ClosetView: View {
                         detail: organizationSnapshot.missingImageCount == 0 ? "图片记录完整" : "可优先补拍照片",
                         systemImage: "photo.badge.exclamationmark"
                     ) {
-                        applyFocusFilter(.missingImage)
+                        activeOrganizationDetail = .missingImage
                     }
 
                     closetInsightCard(
@@ -215,7 +240,7 @@ struct ClosetView: View {
                         detail: organizationSnapshot.detailGapCount == 0 ? "基础资料完整" : "缺少图片、标签、品牌或尺码",
                         systemImage: "checklist"
                     ) {
-                        applyFocusFilter(.needsDetails)
+                        activeOrganizationDetail = .needsDetails
                     }
 
                     closetInsightCard(
@@ -223,7 +248,9 @@ struct ClosetView: View {
                         value: organizationSnapshot.coverageText,
                         detail: missingCategorySummary,
                         systemImage: "square.grid.2x2"
-                    )
+                    ) {
+                        activeOrganizationDetail = .categoryCoverage
+                    }
 
                     closetInsightCard(
                         title: "收藏单品",
@@ -231,11 +258,7 @@ struct ClosetView: View {
                         detail: "常穿单品可快速筛出",
                         systemImage: "heart"
                     ) {
-                        selectedCategory = "收藏"
-                        selectedSeason = Self.allSeasonTitle
-                        selectedFocusFilter = .all
-                        searchText = ""
-                        AppHaptics.selection()
+                        activeOrganizationDetail = .favorites
                     }
                 }
             }
@@ -859,14 +882,29 @@ struct ClosetView: View {
         AppHaptics.selection()
     }
 
+    private func organizationItems(for detail: ClosetOrganizationDetail) -> [WardrobeItem] {
+        switch detail {
+        case .unused:
+            sortedItems(items.filter { outfitUsageCount(for: $0) == 0 })
+        case .missingImage:
+            sortedItems(items.filter { $0.imageData == nil })
+        case .needsDetails:
+            sortedItems(items.filter(itemNeedsDetails))
+        case .categoryCoverage:
+            []
+        case .favorites:
+            sortedItems(items.filter(\.isFavorite))
+        }
+    }
+
     private func handleOrganizationTask(_ task: ClosetOrganizationTask) {
         switch task.kind {
         case .addClothing:
             showsAddSheet = true
         case .showNeedsDetails:
-            applyFocusFilter(.needsDetails)
+            activeOrganizationDetail = .needsDetails
         case .showUnused:
-            applyFocusFilter(.unused)
+            activeOrganizationDetail = .unused
         }
     }
 
@@ -984,6 +1022,61 @@ private extension ClosetView {
         }
     }
 
+    enum ClosetOrganizationDetail: String, Identifiable {
+        case unused
+        case missingImage
+        case needsDetails
+        case categoryCoverage
+        case favorites
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .unused:
+                "未入搭配"
+            case .missingImage:
+                "缺少图片"
+            case .needsDetails:
+                "待补资料"
+            case .categoryCoverage:
+                "分类覆盖"
+            case .favorites:
+                "收藏单品"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .unused:
+                "这些单品还没有加入任何 OOTD。"
+            case .missingImage:
+                "进入详情后可补拍或替换图片。"
+            case .needsDetails:
+                "优先补图片、标签、品牌和尺码。"
+            case .categoryCoverage:
+                "查看核心分类是否已经覆盖。"
+            case .favorites:
+                "常穿单品会在推荐里获得更高权重。"
+            }
+        }
+
+        var emptyText: String {
+            switch self {
+            case .unused:
+                "当前所有单品都已经加入过 OOTD。"
+            case .missingImage:
+                "当前没有缺少图片的单品。"
+            case .needsDetails:
+                "当前没有明显待补资料的单品。"
+            case .categoryCoverage:
+                "暂无分类覆盖数据。"
+            case .favorites:
+                "还没有收藏单品。进入衣物详情可以标记常穿。"
+            }
+        }
+    }
+
     enum ClosetSortMode: CaseIterable {
         case recent
         case name
@@ -1005,6 +1098,198 @@ private extension ClosetView {
                 "使用少优先"
             }
         }
+    }
+}
+
+private struct ClosetOrganizationDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    let detail: ClosetView.ClosetOrganizationDetail
+    let items: [WardrobeItem]
+    let coverageRows: [ClosetCategoryCoverage]
+    let onSelectCategory: (String) -> Void
+    let onDeleted: (String) -> Void
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(detail.title)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text(detail.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                if detail == .categoryCoverage {
+                    coverageSection
+                } else if items.isEmpty {
+                    emptyDetailCard
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(items, id: \.id) { item in
+                            NavigationLink {
+                                ClothingDetailView(item: item, onDeleted: onDeleted)
+                            } label: {
+                                organizationItemRow(item)
+                            }
+                            .buttonStyle(HomePressableButtonStyle())
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, HomeMetrics.pagePadding)
+            .padding(.top, 18)
+            .padding(.bottom, 36)
+        }
+        .background(detailBackground)
+        .navigationTitle(detail.title)
+        .homeInlineNavigationTitle()
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("完成") {
+                    dismiss()
+                }
+            }
+        }
+    }
+
+    private var emptyDetailCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.green)
+                .frame(width: 44, height: 44)
+                .homeCardSurface(weight: .tertiary, cornerRadius: 20)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("暂无待处理单品")
+                    .font(.headline)
+                Text(detail.emptyText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private var coverageSection: some View {
+        VStack(spacing: 12) {
+            ForEach(coverageRows) { row in
+                Button {
+                    guard row.count > 0 else { return }
+                    onSelectCategory(row.category)
+                    dismiss()
+                } label: {
+                    coverageRow(row)
+                }
+                .disabled(row.count == 0)
+                .buttonStyle(HomePressableButtonStyle())
+            }
+        }
+    }
+
+    private func organizationItemRow(_ item: WardrobeItem) -> some View {
+        HStack(spacing: 12) {
+            itemThumbnail(item)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(item.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(item.fullDisplaySubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(item.needsDetailCompletion ? "点进详情补充图片、标签、品牌或尺码" : "资料完整，可继续搭配")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary.opacity(0.9))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private func coverageRow(_ row: ClosetCategoryCoverage) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: row.count == 0 ? "plus.viewfinder" : "square.grid.2x2.fill")
+                .font(.headline)
+                .frame(width: 36, height: 36)
+                .homeCardSurface(weight: .tertiary, cornerRadius: 18)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(row.category)
+                        .font(.subheadline.weight(.semibold))
+                    if row.isCore {
+                        Text("核心")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                    }
+                }
+                Text(row.count == 0 ? "还没有这类单品，建议添加。" : "已有 \(row.count) 件，点击查看分类。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+            if row.count > 0 {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+        .opacity(row.count == 0 ? 0.68 : 1)
+    }
+
+    private func itemThumbnail(_ item: WardrobeItem) -> some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(item.tintColor.gradient)
+            .frame(width: 72, height: 72)
+            .overlay {
+                if let imageData = item.imageData, let image = WardrobePlatformImage(data: imageData) {
+                    #if canImport(UIKit)
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                    #elseif canImport(AppKit)
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                    #endif
+                } else {
+                    Image(systemName: item.imageSymbol)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.94))
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var detailBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.97, green: 0.98, blue: 0.99),
+                Color(red: 0.93, green: 0.95, blue: 0.98),
+                Color(red: 0.96, green: 0.95, blue: 0.93)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
     }
 }
 
