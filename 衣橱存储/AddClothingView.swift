@@ -42,6 +42,7 @@ struct AddClothingView: View {
             season: draft.season,
             imageSymbol: draft.imageSymbol,
             imageData: draft.imageData,
+            thumbnailData: draft.thumbnailData,
             styleTagsText: draft.styleTagsText,
             notes: draft.notes,
             brand: draft.brand,

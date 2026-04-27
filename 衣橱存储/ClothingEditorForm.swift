@@ -19,6 +19,7 @@ struct ClothingDraft {
     var purchaseChannel: String = ""
     var careNotes: String = ""
     var imageData: Data? = nil
+    var thumbnailData: Data? = nil
 
     init() {}
 
@@ -37,6 +38,7 @@ struct ClothingDraft {
         purchaseChannel = item.trimmedPurchaseChannel ?? ""
         careNotes = item.trimmedCareNotes ?? ""
         imageData = item.imageData
+        thumbnailData = item.thumbnailData
     }
 
     var trimmedName: String {
@@ -187,6 +189,7 @@ struct ClothingEditorForm: View {
 
                     Button {
                         draft.imageData = nil
+                        draft.thumbnailData = nil
                         selectedPhotoItem = nil
                         imageImportStatus = nil
                         imageImportFailureMessage = nil
@@ -403,7 +406,9 @@ struct ClothingEditorForm: View {
 
     private func applyImportedImageData(_ imageData: Data) {
         let optimizedData = ImageDataOptimizer.optimizedJPEGData(from: imageData) ?? imageData
+        let thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: optimizedData) ?? optimizedData
         draft.imageData = optimizedData
+        draft.thumbnailData = thumbnailData
         imageImportFailureMessage = nil
         imageImportStatus = ClothingImageImportStatus(
             originalByteCount: imageData.count,

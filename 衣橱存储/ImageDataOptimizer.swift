@@ -6,10 +6,12 @@ import AppKit
 #endif
 
 enum ImageDataOptimizer {
-    static let defaultMaxDimension: CGFloat = 1400
-    static let defaultMaxByteCount = 700_000
+    nonisolated static let defaultMaxDimension: CGFloat = 1400
+    nonisolated static let defaultMaxByteCount = 700_000
+    nonisolated static let thumbnailMaxDimension: CGFloat = 360
+    nonisolated static let thumbnailMaxByteCount = 90_000
 
-    static func optimizedJPEGData(
+    nonisolated static func optimizedJPEGData(
         from data: Data,
         maxDimension: CGFloat = defaultMaxDimension,
         maxByteCount: Int = defaultMaxByteCount
@@ -18,7 +20,7 @@ enum ImageDataOptimizer {
         let candidates = compressionCandidates(from: data, maxDimension: maxDimension)
         let fittingCandidate = candidates
             .filter { $0.count <= maxByteCount }
-            .min { $0.count < $1.count }
+            .first
 
         if let fittingCandidate {
             return fittingCandidate.count < data.count ? fittingCandidate : data
@@ -30,20 +32,28 @@ enum ImageDataOptimizer {
         return smallestCandidate.count < data.count ? smallestCandidate : data
     }
 
-    static func scaledSize(for size: CGSize, maxDimension: CGFloat) -> CGSize {
+    nonisolated static func thumbnailJPEGData(
+        from data: Data,
+        maxDimension: CGFloat = thumbnailMaxDimension,
+        maxByteCount: Int = thumbnailMaxByteCount
+    ) -> Data? {
+        optimizedJPEGData(from: data, maxDimension: maxDimension, maxByteCount: maxByteCount)
+    }
+
+    nonisolated static func scaledSize(for size: CGSize, maxDimension: CGFloat) -> CGSize {
         let largestSide = max(size.width, size.height)
         guard largestSide > maxDimension, largestSide > 0 else { return size }
         let scale = maxDimension / largestSide
         return CGSize(width: size.width * scale, height: size.height * scale)
     }
 
-    private static func compressionCandidates(from data: Data, maxDimension: CGFloat) -> [Data] {
+    private nonisolated static func compressionCandidates(from data: Data, maxDimension: CGFloat) -> [Data] {
         [0.82, 0.72, 0.62, 0.52].compactMap { quality in
             resizedJPEGData(from: data, maxDimension: maxDimension, quality: quality)
         }
     }
 
-    private static func resizedJPEGData(from data: Data, maxDimension: CGFloat, quality: CGFloat) -> Data? {
+    private nonisolated static func resizedJPEGData(from data: Data, maxDimension: CGFloat, quality: CGFloat) -> Data? {
         #if canImport(UIKit)
         guard let image = UIImage(data: data) else { return nil }
         let targetSize = scaledSize(for: image.size, maxDimension: maxDimension)

@@ -54,6 +54,7 @@ struct EditClothingView: View {
         item.season = draft.season
         item.imageSymbol = draft.imageSymbol
         item.imageData = draft.imageData
+        item.thumbnailData = draft.thumbnailData
         item.styleTagsText = draft.styleTagsText
         item.notes = draft.notes
         item.brand = draft.brand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : draft.brand.trimmingCharacters(in: .whitespacesAndNewlines)

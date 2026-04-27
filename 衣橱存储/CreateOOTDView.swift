@@ -487,27 +487,8 @@ private extension CreateOOTDView {
                                 selectedID.wrappedValue = isSelected ? nil : item.persistentModelID
                             } label: {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .fill(item.tintColor.gradient)
+                                    WardrobeItemImageView(item: item)
                                         .frame(width: 88, height: 88)
-                                        .overlay {
-                                            if let imageData = item.imageData, let image = WardrobePlatformImage(data: imageData) {
-                                                #if canImport(UIKit)
-                                                Image(uiImage: image)
-                                                    .resizable()
-                                                    .scaledToFill()
-                                                #elseif canImport(AppKit)
-                                                Image(nsImage: image)
-                                                    .resizable()
-                                                    .scaledToFill()
-                                                #endif
-                                            } else {
-                                                Image(systemName: item.imageSymbol)
-                                                    .font(.title3.weight(.semibold))
-                                                    .foregroundStyle(.white.opacity(0.94))
-                                            }
-                                        }
-                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                                         .overlay(alignment: .topTrailing) {
                                             if isSelected {
                                                 Image(systemName: "checkmark.circle.fill")

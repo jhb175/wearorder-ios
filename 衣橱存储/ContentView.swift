@@ -1789,27 +1789,12 @@ struct WardrobeItemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(item.tintColor.gradient)
+            WardrobeItemImageView(
+                item: item,
+                cornerRadius: 24,
+                symbolFont: .system(size: 30, weight: .semibold)
+            )
                 .frame(height: emphasis == .grid ? 158 : 138)
-                .overlay {
-                    if let imageData = item.imageData, let image = WardrobePlatformImage(data: imageData) {
-                        #if canImport(UIKit)
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                        #elseif canImport(AppKit)
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFill()
-                        #endif
-                    } else {
-                        Image(systemName: item.imageSymbol)
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.95))
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay(alignment: .topTrailing) {
                     if item.isFavorite {
                         Image(systemName: "heart.fill")

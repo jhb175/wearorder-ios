@@ -306,6 +306,7 @@ private struct WardrobeBackupPayload: Codable {
             item.season = season
             item.imageSymbol = imageSymbol
             item.imageData = imageData
+            item.thumbnailData = imageData.flatMap { ImageDataOptimizer.thumbnailJPEGData(from: $0) }
             item.styleTagsText = styleTagsText
             item.notes = notes
             item.brand = normalizedOptional(brand)

@@ -36,5 +36,21 @@ final class ImageDataOptimizerTests: XCTestCase {
 
         XCTAssertLessThanOrEqual(optimizedData.count, originalData.count)
     }
+
+    func testThumbnailJPEGDataKeepsSmallPreviewBudget() throws {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1800, height: 1200))
+        let image = renderer.image { context in
+            UIColor.systemPurple.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1800, height: 1200))
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 220, y: 180, width: 1120, height: 760))
+        }
+        let originalData = try XCTUnwrap(image.jpegData(compressionQuality: 1.0))
+        let thumbnailData = try XCTUnwrap(ImageDataOptimizer.thumbnailJPEGData(from: originalData))
+        let thumbnailImage = try XCTUnwrap(UIImage(data: thumbnailData))
+
+        XCTAssertLessThanOrEqual(thumbnailData.count, ImageDataOptimizer.thumbnailMaxByteCount)
+        XCTAssertLessThanOrEqual(max(thumbnailImage.size.width, thumbnailImage.size.height), ImageDataOptimizer.thumbnailMaxDimension)
+    }
     #endif
 }

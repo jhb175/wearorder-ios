@@ -11,6 +11,7 @@ final class WardrobeItem {
     var season: String
     var imageSymbol: String
     @Attribute(.externalStorage) var imageData: Data?
+    @Attribute(.externalStorage) var thumbnailData: Data?
     var styleTagsText: String
     var notes: String
     var brand: String?
@@ -31,6 +32,7 @@ final class WardrobeItem {
         season: String,
         imageSymbol: String,
         imageData: Data? = nil,
+        thumbnailData: Data? = nil,
         styleTagsText: String = "",
         notes: String = "",
         brand: String = "",
@@ -50,6 +52,7 @@ final class WardrobeItem {
         self.season = season
         self.imageSymbol = imageSymbol
         self.imageData = imageData
+        self.thumbnailData = thumbnailData ?? imageData.flatMap { ImageDataOptimizer.thumbnailJPEGData(from: $0) }
         self.styleTagsText = styleTagsText
         self.notes = notes
         self.brand = Self.optionalTrimmed(brand)
@@ -385,6 +388,10 @@ extension WardrobeItem {
 
     var needsDetailCompletion: Bool {
         imageData == nil || styleTags.isEmpty || trimmedBrand == nil || trimmedSize == nil
+    }
+
+    var preferredThumbnailData: Data? {
+        thumbnailData ?? imageData
     }
 
     var searchableFields: [String] {

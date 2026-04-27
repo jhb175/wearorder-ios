@@ -1,7 +1,13 @@
 import SwiftUI
 import SwiftData
 
+private struct ThumbnailBackfillSource: Sendable {
+    let id: UUID
+    let imageData: Data
+}
+
 struct ClosetView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \WardrobeItem.createdAt, order: .reverse) private var items: [WardrobeItem]
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
     @State private var searchText = ""
@@ -12,6 +18,7 @@ struct ClosetView: View {
     @State private var showsAddSheet = false
     @State private var feedback: ActionFeedbackState?
     @State private var activeOrganizationDetail: ClosetOrganizationDetail?
+    @State private var didStartThumbnailBackfill = false
 
     var body: some View {
         NavigationStack {
@@ -117,6 +124,41 @@ struct ClosetView: View {
                 .padding(.horizontal, HomeMetrics.pagePadding)
                 .padding(.bottom, 10)
             }
+            .task {
+                await backfillMissingThumbnailsIfNeeded()
+            }
+        }
+    }
+
+    private func backfillMissingThumbnailsIfNeeded() async {
+        guard !didStartThumbnailBackfill else { return }
+        didStartThumbnailBackfill = true
+
+        let sources = items.compactMap { item -> ThumbnailBackfillSource? in
+            guard item.thumbnailData == nil, let imageData = item.imageData else { return nil }
+            return ThumbnailBackfillSource(id: item.id, imageData: imageData)
+        }
+        guard !sources.isEmpty else { return }
+
+        let generatedThumbnails = await Task.detached(priority: .utility) {
+            sources.compactMap { source -> (UUID, Data)? in
+                guard let thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: source.imageData) else {
+                    return nil
+                }
+                return (source.id, thumbnailData)
+            }
+        }.value
+
+        guard !Task.isCancelled else { return }
+        var didChange = false
+        for (id, thumbnailData) in generatedThumbnails {
+            guard let item = items.first(where: { $0.id == id }), item.thumbnailData == nil else { continue }
+            item.thumbnailData = thumbnailData
+            didChange = true
+        }
+
+        if didChange {
+            try? modelContext.save()
         }
     }
 
@@ -660,29 +702,20 @@ struct ClosetView: View {
 
     private func categoryPreviewTile(_ item: WardrobeItem?, category: String) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: HomeMetrics.innerRadius, style: .continuous)
-                .fill((item?.tintColor ?? Color.primary.opacity(0.16)).gradient)
-
-            if let item,
-               let imageData = item.imageData,
-               let image = WardrobePlatformImage(data: imageData) {
-                #if canImport(UIKit)
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                #elseif canImport(AppKit)
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-                #endif
-            } else if let item {
-                Image(systemName: item.imageSymbol)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.92))
+            if let item {
+                WardrobeItemImageView(
+                    item: item,
+                    cornerRadius: HomeMetrics.innerRadius,
+                    symbolFont: .title2.weight(.semibold)
+                )
             } else {
-                Image(systemName: categorySymbol(for: category))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                RoundedRectangle(cornerRadius: HomeMetrics.innerRadius, style: .continuous)
+                    .fill(Color.primary.opacity(0.16).gradient)
+                    .overlay {
+                        Image(systemName: categorySymbol(for: category))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: HomeMetrics.innerRadius, style: .continuous))
@@ -1256,27 +1289,8 @@ private struct ClosetOrganizationDetailView: View {
     }
 
     private func itemThumbnail(_ item: WardrobeItem) -> some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(item.tintColor.gradient)
+        WardrobeItemImageView(item: item)
             .frame(width: 72, height: 72)
-            .overlay {
-                if let imageData = item.imageData, let image = WardrobePlatformImage(data: imageData) {
-                    #if canImport(UIKit)
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                    #elseif canImport(AppKit)
-                    Image(nsImage: image)
-                        .resizable()
-                        .scaledToFill()
-                    #endif
-                } else {
-                    Image(systemName: item.imageSymbol)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.94))
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var detailBackground: some View {
