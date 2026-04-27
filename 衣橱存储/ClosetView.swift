@@ -18,6 +18,7 @@ struct ClosetView: View {
                 VStack(alignment: .leading, spacing: HomeMetrics.sectionSpacing) {
                     closetHeroSection
                     recentItemsSection
+                    categoryWardrobeSection
                     categorySection
                     clothingGridSection
                     closetOrganizationSection
@@ -129,7 +130,7 @@ struct ClosetView: View {
     private var recentItemsSection: some View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
-                closetSectionHeader(title: "最近单品", subtitle: "\(recentItems.count) 件")
+                closetSectionHeader(title: "最近入柜", subtitle: "\(recentItems.count) 件")
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 14) {
@@ -150,6 +151,34 @@ struct ClosetView: View {
                         }
                     }
                     .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var categoryWardrobeSection: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                closetSectionHeader(title: "分类衣柜", subtitle: "\(categoryShelfRows.count) 类")
+
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 14),
+                    GridItem(.flexible(), spacing: 14)
+                ], spacing: 14) {
+                    ForEach(categoryShelfRows) { row in
+                        Button {
+                            selectedCategory = row.category
+                            selectedSeason = Self.allSeasonTitle
+                            selectedFocusFilter = .all
+                            searchText = ""
+                            selectedSortMode = .recent
+                            AppHaptics.selection()
+                        } label: {
+                            categoryWardrobeCard(row)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                    }
                 }
             }
         }
@@ -380,7 +409,7 @@ struct ClosetView: View {
 
     private var clothingGridSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            closetSectionHeader(title: "衣物库", subtitle: "\(filteredItems.count) 件")
+            closetSectionHeader(title: selectedCategory == "全部" ? "全部单品" : selectedCategory, subtitle: "\(filteredItems.count) 件")
 
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 14),
@@ -454,6 +483,22 @@ struct ClosetView: View {
 
     private var organizationSnapshot: ClosetOrganizationSnapshot {
         ClosetOrganizationSnapshot.make(items: items, outfits: outfits)
+    }
+
+    private var categoryShelfRows: [ClosetCategoryShelfRow] {
+        Dictionary(grouping: items, by: \.category)
+            .map { category, categoryItems in
+                ClosetCategoryShelfRow(
+                    category: category,
+                    items: sortedItems(categoryItems)
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.count == rhs.count {
+                    return isOrdered(lhs.category, before: rhs.category)
+                }
+                return lhs.count > rhs.count
+            }
     }
 
     private var recentItems: [WardrobeItem] {
@@ -536,6 +581,116 @@ struct ClosetView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+    }
+
+    private func categoryWardrobeCard(_ row: ClosetCategoryShelfRow) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            categoryPreviewShelf(for: row)
+
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(row.category)
+                        .font(.headline.weight(.semibold))
+                        .lineLimit(1)
+                    Text(row.detailText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Text("\(row.count)")
+                    .font(.title3.monospacedDigit().weight(.bold))
+                    .foregroundStyle(.primary)
+            }
+
+            if let latestItem = row.items.first {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.caption2.weight(.bold))
+                    Text("最近：\(latestItem.name)")
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private func categoryPreviewShelf(for row: ClosetCategoryShelfRow) -> some View {
+        HStack(spacing: 7) {
+            categoryPreviewTile(row.items.first, category: row.category)
+                .frame(maxWidth: .infinity)
+
+            VStack(spacing: 7) {
+                categoryPreviewTile(row.items.dropFirst().first, category: row.category)
+                categoryPreviewTile(row.items.dropFirst(2).first, category: row.category)
+            }
+            .frame(width: 48)
+        }
+        .frame(height: 112)
+    }
+
+    private func categoryPreviewTile(_ item: WardrobeItem?, category: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: HomeMetrics.innerRadius, style: .continuous)
+                .fill((item?.tintColor ?? Color.primary.opacity(0.16)).gradient)
+
+            if let item,
+               let imageData = item.imageData,
+               let image = WardrobePlatformImage(data: imageData) {
+                #if canImport(UIKit)
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                #elseif canImport(AppKit)
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+                #endif
+            } else if let item {
+                Image(systemName: item.imageSymbol)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+            } else {
+                Image(systemName: categorySymbol(for: category))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: HomeMetrics.innerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: HomeMetrics.innerRadius, style: .continuous)
+                .stroke(Color.white.opacity(0.42), lineWidth: 1)
+        }
+        .clipped()
+    }
+
+    private func categorySymbol(for category: String) -> String {
+        switch category {
+        case WardrobeCategory.top.rawValue:
+            "tshirt.fill"
+        case WardrobeCategory.outerwear.rawValue:
+            "jacket.fill"
+        case WardrobeCategory.bottom.rawValue:
+            "figure.stand"
+        case WardrobeCategory.skirt.rawValue:
+            "person.fill"
+        case WardrobeCategory.shoes.rawValue:
+            "shoeprints.fill"
+        case WardrobeCategory.bag.rawValue:
+            "handbag.fill"
+        case WardrobeCategory.accessory.rawValue:
+            "sparkles"
+        case WardrobeCategory.hat.rawValue:
+            "hat.cap.fill"
+        default:
+            "square.grid.2x2.fill"
+        }
     }
 
     @ViewBuilder
@@ -780,6 +935,21 @@ struct ClosetView: View {
 
 private extension ClosetView {
     static let allSeasonTitle = "全部季节"
+
+    struct ClosetCategoryShelfRow: Identifiable {
+        var id: String { category }
+        let category: String
+        let items: [WardrobeItem]
+
+        var count: Int {
+            items.count
+        }
+
+        var detailText: String {
+            let photoCount = items.filter { $0.imageData != nil }.count
+            return "\(photoCount)/\(count) 有照片"
+        }
+    }
 
     enum ClosetFocusFilter: CaseIterable {
         case all
