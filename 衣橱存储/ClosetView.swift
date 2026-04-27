@@ -17,11 +17,12 @@ struct ClosetView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: HomeMetrics.sectionSpacing) {
                     closetHeroSection
+                    recentItemsSection
+                    categorySection
+                    clothingGridSection
                     closetOrganizationSection
                     closetInsightsSection
                     closetCoverageSection
-                    categorySection
-                    clothingGridSection
                 }
                 .padding(.horizontal, HomeMetrics.pagePadding)
                 .padding(.top, 16)
@@ -120,6 +121,36 @@ struct ClosetView: View {
                 }
                 .buttonStyle(HomePressableButtonStyle())
                 .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var recentItemsSection: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                closetSectionHeader(title: "最近单品", subtitle: "\(recentItems.count) 件")
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(recentItems, id: \.id) { item in
+                            NavigationLink {
+                                ClothingDetailView(item: item) { deletedName in
+                                    feedback = ActionFeedbackState(
+                                        title: "已删除衣物",
+                                        message: "“\(deletedName)”已从衣橱移除，相关搭配会安全保留缺失状态。",
+                                        systemImage: "trash"
+                                    )
+                                }
+                            } label: {
+                                WardrobeItemCard(item: item, emphasis: .carousel)
+                                    .frame(width: 184)
+                            }
+                            .buttonStyle(HomePressableButtonStyle())
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
             }
         }
     }
@@ -423,6 +454,18 @@ struct ClosetView: View {
 
     private var organizationSnapshot: ClosetOrganizationSnapshot {
         ClosetOrganizationSnapshot.make(items: items, outfits: outfits)
+    }
+
+    private var recentItems: [WardrobeItem] {
+        items
+            .sorted { lhs, rhs in
+                if lhs.lastModifiedAt == rhs.lastModifiedAt {
+                    return isOrdered(lhs.name, before: rhs.name)
+                }
+                return lhs.lastModifiedAt > rhs.lastModifiedAt
+            }
+            .prefix(6)
+            .map { $0 }
     }
 
     private var insightsSnapshot: WardrobeInsightsSnapshot {
