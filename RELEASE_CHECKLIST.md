@@ -21,6 +21,7 @@
 - 拿到真实公开链接后，运行 `./scripts/configure_release_contacts.sh` 同步写入隐私政策 URL、支持 URL 和支持邮箱。
 - 真实 URL 和邮箱替换完成后，运行 `./scripts/audit_app_store_readiness.sh --strict`，必须通过。
 - 用 `TESTFLIGHT_INTERNAL_QA.md` 记录本轮自动检查和真机路径结果。
+- 在 Xcode 的 Signing & Capabilities 中选择真实 Apple Development Team；未选择 Team 时真机 Release 构建会失败。
 - 按 `APP_STORE_QA.md` 完成 7 条上架前真实体验路径。
 - 对照 `APP_STORE_CONNECT_PRIVACY_LABELS.md` 填写 App Store 隐私问卷。
 - 在 `衣橱存储/AppReleaseInfo.swift` 填入隐私政策 URL、支持 URL 和支持邮箱，并在设置页确认三项都显示为可打开入口。

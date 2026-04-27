@@ -17,6 +17,15 @@
 | `./scripts/run_local_smoke_test.sh` | 通过 | 包含 generic iOS、模拟器 build-for-testing 和 Release generic iOS 构建。 |
 | `xcodebuild test` | 通过 | iPhone 17 Pro / iOS 26.4.1 模拟器测试通过。 |
 | Release 模拟器构建 | 通过 | iPhone 17 Pro / iOS 26.4.1 模拟器 Release 构建通过。 |
+| 真机设备检测 | 通过 | Xcode 可看到已连接真机。 |
+| Release 真机签名构建 | 阻塞 | 构建被签名挡住：需要在 Xcode Signing & Capabilities 中选择 Development Team。 |
+
+## 当前阻塞项
+
+| 阻塞项 | 状态 | 处理方式 |
+| --- | --- | --- |
+| Development Team 未配置 | 待处理 | 在 Xcode 打开 `衣橱存储.xcodeproj`，选择 target `衣橱存储`，进入 Signing & Capabilities，勾选 Automatically manage signing，并选择你的 Apple Team。 |
+| TestFlight 上传权限 | 待确认 | 上传 TestFlight 需要 Apple Developer Program 年会员；免费账号只能真机本地安装测试。 |
 
 ## 真机必测路径
 
