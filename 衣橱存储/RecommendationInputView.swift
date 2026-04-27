@@ -9,7 +9,7 @@ struct RecommendationInputView: View {
     init(
         defaultWeather: RecommendationWeather? = nil,
         defaultTemperature: Int? = nil,
-        weatherSource: WeatherPrefillSource = .manual
+        weatherSource: WeatherPrefillSource = .ootdTab
     ) {
         _input = State(initialValue: RecommendationInput(weather: defaultWeather, temperatureCelsius: defaultTemperature))
         self.weatherSource = weatherSource
@@ -17,15 +17,11 @@ struct RecommendationInputView: View {
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 20) {
-                headerSection
-                readinessSection
-                if weatherSource.allowsManualWeather {
-                    weatherSection
-                    temperatureSection
-                }
-                occasionSection
-                styleSection
+                VStack(alignment: .leading, spacing: 20) {
+                    headerSection
+                    readinessSection
+                    occasionSection
+                    styleSection
 
                 NavigationLink {
                     RecommendationResultView(
@@ -95,39 +91,6 @@ struct RecommendationInputView: View {
         .homeCardSurface(weight: isReady ? .tertiary : .secondary, cornerRadius: HomeMetrics.secondaryRadius)
     }
 
-    private var weatherSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("天气")
-                    .font(.title3.weight(.semibold))
-                Spacer()
-                Text(input.weather == nil ? "可先手动选择" : "默认可修改")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(RecommendationWeather.allCases) { option in
-                    let isSelected = input.weather == option
-
-                    Button {
-                        input.weather = option
-                    } label: {
-                        Text(option.rawValue)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(HomePressableButtonStyle())
-                    .glassCard(
-                        cornerRadius: HomeMetrics.secondaryRadius,
-                        tint: isSelected ? Color.white.opacity(0.26) : Color.white.opacity(0.12)
-                    )
-                }
-            }
-        }
-    }
-
     private var occasionSection: some View {
         optionSection(
             title: "场景",
@@ -135,39 +98,6 @@ struct RecommendationInputView: View {
             options: RecommendationOccasion.allCases,
             selected: $input.occasion
         )
-    }
-
-    private var temperatureSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("温度")
-                    .font(.title3.weight(.semibold))
-                Spacer()
-                Text("用于判断厚薄")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            Stepper(
-                value: Binding(
-                    get: { input.temperatureCelsius ?? 24 },
-                    set: { input.temperatureCelsius = $0 }
-                ),
-                in: -10...40
-            ) {
-                HStack {
-                    Label("当前体感", systemImage: "thermometer.medium")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text("\(input.temperatureCelsius ?? 24)°")
-                        .font(.subheadline.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
-        }
     }
 
     private var styleSection: some View {
@@ -239,7 +169,6 @@ extension RecommendationInputView {
     enum WeatherPrefillSource: Equatable {
         case homeWeatherCard
         case ootdTab
-        case manual
 
         var systemImage: String {
             switch self {
@@ -247,23 +176,12 @@ extension RecommendationInputView {
                 "cloud.sun"
             case .ootdTab:
                 "sparkles"
-            case .manual:
-                "slider.horizontal.3"
             }
-        }
-
-        var allowsManualWeather: Bool {
-            self == .manual
         }
 
         func headline(for weather: RecommendationWeather?, temperature: Int?) -> String {
             guard let weather else {
-                switch self {
-                case .homeWeatherCard, .ootdTab:
-                    return "尚未获取首页天气预报，推荐会先按场景和风格生成"
-                case .manual:
-                    return "可以手动选择天气和温度"
-                }
+                return "尚未获取天气预报，将先按场景和风格生成"
             }
 
             let temperatureText = temperature.map { " · \($0)°" } ?? ""
@@ -272,8 +190,6 @@ extension RecommendationInputView {
                 return "已按首页天气预报预填：\(weather.rawValue)\(temperatureText)"
             case .ootdTab:
                 return "已按首页天气预报预填：\(weather.rawValue)\(temperatureText)"
-            case .manual:
-                return "当前天气默认：\(weather.rawValue)\(temperatureText)"
             }
         }
     }

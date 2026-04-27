@@ -20,22 +20,6 @@ struct ContentView: View {
     @State private var selectedTab: HomeTab = .home
     @State private var ootdSearchText = ""
     @State private var selectedOOTDListFilter: OOTDListFilter = .all
-    @State private var ootdTitle = "新搭配"
-    @State private var ootdNotes = ""
-    @State private var selectedTopID: PersistentIdentifier?
-    @State private var selectedBottomID: PersistentIdentifier?
-    @State private var selectedShoesID: PersistentIdentifier?
-    @State private var selectedBagID: PersistentIdentifier?
-    @State private var selectedAccessoryID: PersistentIdentifier?
-    @State private var marksAsToday = true
-    @State private var planTitle = "新的穿搭计划"
-    @State private var planOccasion = "日常"
-    @State private var planDate = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
-    @State private var planReminderEnabled = true
-    @State private var planReminderTime = Calendar.current.date(bySettingHour: 8, minute: 30, second: 0, of: .now) ?? .now
-    @State private var selectedPlannedOutfitID: PersistentIdentifier?
-    @State private var plannerViewMode: PlannerViewMode = .week
-    @State private var selectedPlannerDay = Calendar.current.startOfDay(for: .now)
     @State private var showsAddClothing = false
     @State private var showsRecommendationInput = false
     @State private var showsCreateOOTD = false
@@ -318,7 +302,7 @@ struct ContentView: View {
 
                 Spacer(minLength: 20)
 
-                Text("Today")
+                Text("今天")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
@@ -1275,7 +1259,7 @@ struct ContentView: View {
 
                             Spacer()
 
-                            Text("Today")
+                            Text("今天")
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
@@ -1479,145 +1463,6 @@ struct ContentView: View {
         .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
     }
 
-    private var plansBuilderHeroSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("安排未来几天")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-            Text("从已保存的 OOTD 里挑一套，绑定到某个日期，先完成本地计划闭环。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 12) {
-                summaryChip(title: "已存 OOTD", value: "\(outfits.count)")
-                summaryChip(title: "计划总数", value: "\(plans.count)")
-                summaryChip(title: "提醒开启", value: "\(plans.filter(\.reminderEnabled).count)")
-            }
-
-            Picker("视图模式", selection: $plannerViewMode) {
-                ForEach(PlannerViewMode.allCases, id: \.self) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            if plannerViewMode == .day {
-                DatePicker("查看哪一天", selection: $selectedPlannerDay, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-            }
-        }
-    }
-
-    private var planBuilderSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "新建计划", subtitle: "绑定已保存搭配")
-
-            ootdTextField(title: "计划标题", text: $planTitle, prompt: "例如：周三通勤")
-            ootdTextField(title: "场景", text: $planOccasion, prompt: "例如：办公室 / 咖啡 / 出游")
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("计划日期")
-                    .font(.subheadline.weight(.semibold))
-
-                DatePicker("计划日期", selection: $planDate, displayedComponents: .date)
-                    .labelsHidden()
-                    .datePickerStyle(.graphical)
-                    .padding(12)
-                    .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
-            }
-
-            if planReminderEnabled {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("提醒时间")
-                        .font(.subheadline.weight(.semibold))
-
-                    DatePicker("提醒时间", selection: $planReminderTime, displayedComponents: .hourAndMinute)
-                        .labelsHidden()
-                        #if os(iOS)
-                        .datePickerStyle(.wheel)
-                        #else
-                        .datePickerStyle(.compact)
-                        #endif
-                        .frame(maxHeight: 110)
-                        .padding(.horizontal, 8)
-                        .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("选择 OOTD")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text("已保存搭配")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if outfits.isEmpty {
-                    Text("先去 OOTD 页保存一套搭配，这里才能把它绑定到日期计划。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(16)
-                        .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(outfits, id: \.id) { outfit in
-                                let isSelected = selectedPlannedOutfitID == outfit.persistentModelID
-
-                                Button {
-                                    selectedPlannedOutfitID = isSelected ? nil : outfit.persistentModelID
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(outfit.title)
-                                            .font(.subheadline.weight(.semibold))
-                                            .lineLimit(1)
-                                        Text(outfit.summaryText)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(2)
-                                    }
-                                    .frame(width: 180, alignment: .leading)
-                                    .padding(14)
-                                }
-                                .buttonStyle(HomePressableButtonStyle())
-                                .glassCard(
-                                    cornerRadius: HomeMetrics.secondaryRadius,
-                                    tint: isSelected ? Color.white.opacity(0.24) : Color.white.opacity(0.12)
-                                )
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-            }
-
-            Toggle(isOn: $planReminderEnabled) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("开启提醒")
-                        .font(.subheadline.weight(.semibold))
-                    Text("保存后会创建本地通知提醒。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .toggleStyle(.switch)
-
-            Button {
-                savePlan()
-            } label: {
-                Label("保存穿搭计划", systemImage: "calendar.badge.plus")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(HomePressableButtonStyle())
-            .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.22))
-            .disabled(!canSavePlan)
-            .opacity(canSavePlan ? 1 : 0.55)
-        }
-    }
-
     private var atmosphericBackground: some View {
         ZStack {
             LinearGradient(
@@ -1699,50 +1544,6 @@ struct ContentView: View {
         )
     }
 
-    private func ootdItems(for slot: OOTDSlot) -> [WardrobeItem] {
-        items.filter { slot.categories.contains($0.category) }
-    }
-
-    private func selectedItem(for id: PersistentIdentifier?) -> WardrobeItem? {
-        guard let id else { return nil }
-        return items.first { $0.persistentModelID == id }
-    }
-
-    private func saveOOTD() {
-        guard canSaveOOTD else { return }
-
-        if marksAsToday {
-            for outfit in outfits where outfit.isToday {
-                outfit.isToday = false
-                outfit.updatedAt = .now
-            }
-        }
-
-        let newOutfit = OOTDOutfit(
-            title: trimmedOOTDTitle,
-            notes: ootdNotes.trimmingCharacters(in: .whitespacesAndNewlines),
-            isToday: marksAsToday,
-            topItem: selectedItem(for: selectedTopID),
-            bottomItem: selectedItem(for: selectedBottomID),
-            shoesItem: selectedItem(for: selectedShoesID),
-            bagItem: selectedItem(for: selectedBagID),
-            accessoryItem: selectedItem(for: selectedAccessoryID)
-        )
-
-        modelContext.insert(newOutfit)
-        do {
-            try modelContext.save()
-            resetOOTDBuilder()
-        } catch {
-            modelContext.delete(newOutfit)
-            globalFeedback = ActionFeedbackState(
-                title: "OOTD 保存失败",
-                message: error.localizedDescription,
-                systemImage: "exclamationmark.triangle.fill"
-            )
-        }
-    }
-
     private func markOutfitAsToday(_ outfit: OOTDOutfit) {
         for existing in outfits where existing.isToday {
             existing.isToday = false
@@ -1761,178 +1562,6 @@ struct ContentView: View {
                 systemImage: "exclamationmark.triangle.fill"
             )
         }
-    }
-
-    private func resetOOTDBuilder() {
-        ootdTitle = "新搭配"
-        ootdNotes = ""
-        selectedTopID = nil
-        selectedBottomID = nil
-        selectedShoesID = nil
-        selectedBagID = nil
-        selectedAccessoryID = nil
-        marksAsToday = true
-    }
-
-    private func savePlan() {
-        guard canSavePlan, let linkedOutfit = selectedPlannedOutfit else { return }
-
-        let plan = OutfitPlan(
-            date: planDate,
-            title: trimmedPlanTitle,
-            occasion: trimmedPlanOccasion,
-            outfitSummary: linkedOutfit.summaryText,
-            reminderEnabled: planReminderEnabled,
-            reminderDate: planReminderEnabled ? combinedReminderDate : nil,
-            linkedOutfit: linkedOutfit
-        )
-
-        modelContext.insert(plan)
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.delete(plan)
-            globalFeedback = ActionFeedbackState(
-                title: "计划保存失败",
-                message: error.localizedDescription,
-                systemImage: "exclamationmark.triangle.fill"
-            )
-            return
-        }
-
-        if planReminderEnabled {
-            scheduleReminder(for: plan)
-        }
-
-        resetPlanBuilder()
-    }
-
-    private func scheduleReminder(for plan: OutfitPlan) {
-        Task {
-            let result = await PlannerNotificationManager.scheduleNotification(for: plan)
-            if !result.isScheduled {
-                await MainActor.run {
-                    plan.reminderEnabled = false
-                    plan.reminderDate = nil
-                    plan.updatedAt = .now
-                    do {
-                        try modelContext.save()
-                    } catch {
-                        globalFeedback = ActionFeedbackState(
-                            title: "提醒状态保存失败",
-                            message: error.localizedDescription,
-                            systemImage: "exclamationmark.triangle.fill"
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private func resetPlanBuilder() {
-        planTitle = "新的穿搭计划"
-        planOccasion = "日常"
-        planDate = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
-        planReminderEnabled = true
-        planReminderTime = Calendar.current.date(bySettingHour: 8, minute: 30, second: 0, of: .now) ?? .now
-        selectedPlannedOutfitID = nil
-    }
-
-    private func plannerDetailView(plan: OutfitPlan) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(plan.title)
-                        .font(.title2.weight(.bold))
-                    Text("\(plan.occasion) · \(plan.date.formatted(.dateTime.month().day().weekday(.wide)))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                detailCard(title: "搭配摘要", value: plan.outfitSummary)
-
-                if let linkedOutfit = plan.linkedOutfit {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("关联 OOTD")
-                            .font(.headline)
-                        Text(linkedOutfit.title)
-                            .font(.subheadline.weight(.semibold))
-                        Text(linkedOutfit.summaryText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
-                                ForEach(linkedOutfit.orderedItems, id: \.id) { item in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: item.imageSymbol)
-                                            .font(.caption.weight(.medium))
-                                        Text(item.name)
-                                            .font(.caption.weight(.medium))
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                                }
-                            }
-                        }
-                    }
-                    .padding(18)
-                    .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
-                }
-
-                detailCard(
-                    title: "提醒状态",
-                    value: plan.reminderEnabled
-                    ? "已开启 · \(plan.reminderDate?.formatted(.dateTime.hour().minute()) ?? "未设置时间")"
-                    : "未开启"
-                )
-            }
-            .padding(24)
-        }
-        .background(atmosphericBackground)
-        .navigationTitle("计划详情")
-        .homeInlineNavigationTitle()
-    }
-
-    private func plannerPlanRow(plan: OutfitPlan) -> some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(plan.date, format: .dateTime.weekday(.abbreviated))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Text(plan.date, format: .dateTime.day())
-                    .font(.title2.weight(.bold))
-            }
-            .frame(width: 52)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(plan.title)
-                    .font(.headline)
-                Text(plan.outfitSummary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                if let linkedOutfit = plan.linkedOutfit {
-                    Text("关联 OOTD · \(linkedOutfit.title)")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary.opacity(0.84))
-                }
-                if plan.reminderEnabled, let reminderDate = plan.reminderDate {
-                    Text("提醒 · \(reminderDate.formatted(.dateTime.hour().minute()))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: plan.reminderEnabled ? "bell.badge.fill" : "ellipsis")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-        }
-        .padding(16)
-        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
     }
 
     private func upcomingPlanSummaryRow(summary: HomeDashboardViewModel.UpcomingPlanSummary) -> some View {
@@ -1975,18 +1604,6 @@ struct ContentView: View {
         .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
     }
 
-    @ViewBuilder
-    private func detailCard(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            Text(value)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding(18)
-        .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
-    }
 }
 
 private struct WeatherCityPickerView: View {
@@ -2057,20 +1674,6 @@ private struct WeatherCityPickerView: View {
 }
 
 private extension ContentView {
-    enum PlannerViewMode: CaseIterable {
-        case week
-        case day
-
-        var title: String {
-            switch self {
-            case .week:
-                "周计划"
-            case .day:
-                "日计划"
-            }
-        }
-    }
-
     enum OOTDListFilter: CaseIterable {
         case all
         case today
@@ -2107,58 +1710,6 @@ private extension ContentView {
                 "exclamationmark.triangle"
             }
         }
-    }
-
-    enum OOTDSlot: CaseIterable {
-        case top
-        case bottom
-        case shoes
-        case bag
-        case accessory
-
-        var categories: [String] {
-            switch self {
-            case .top:
-                ["上装", "外套"]
-            case .bottom:
-                ["下装", "裙装"]
-            case .shoes:
-                ["鞋履"]
-            case .bag:
-                ["包袋"]
-            case .accessory:
-                ["配饰", "帽子"]
-            }
-        }
-    }
-
-    var trimmedOOTDTitle: String {
-        let title = ootdTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title.isEmpty ? "未命名搭配" : title
-    }
-
-    var currentOOTDPreviewItems: [WardrobeItem] {
-        [
-            selectedItem(for: selectedTopID),
-            selectedItem(for: selectedBottomID),
-            selectedItem(for: selectedShoesID),
-            selectedItem(for: selectedBagID),
-            selectedItem(for: selectedAccessoryID)
-        ].compactMap { $0 }
-    }
-
-    var currentOOTDSummary: String {
-        let names = currentOOTDPreviewItems.map(\.name)
-        return names.isEmpty ? "尚未选择单品" : names.joined(separator: " + ")
-    }
-
-    var canSaveOOTD: Bool {
-        currentOOTDPreviewItems.count >= 2
-    }
-
-    var selectedPlannedOutfit: OOTDOutfit? {
-        guard let selectedPlannedOutfitID else { return nil }
-        return outfits.first { $0.persistentModelID == selectedPlannedOutfitID }
     }
 
     var ootdListSubtitle: String {
@@ -2225,114 +1776,6 @@ private extension ContentView {
         }
     }
 
-    var trimmedPlanTitle: String {
-        let value = planTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? "未命名计划" : value
-    }
-
-    var trimmedPlanOccasion: String {
-        let value = planOccasion.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? "日常" : value
-    }
-
-    var canSavePlan: Bool {
-        selectedPlannedOutfit != nil && (!planReminderEnabled || combinedReminderDate > .now)
-    }
-
-    var combinedReminderDate: Date {
-        let day = Calendar.current.dateComponents([.year, .month, .day], from: planDate)
-        let time = Calendar.current.dateComponents([.hour, .minute], from: planReminderTime)
-        return Calendar.current.date(from: DateComponents(
-            year: day.year,
-            month: day.month,
-            day: day.day,
-            hour: time.hour,
-            minute: time.minute
-        )) ?? planDate
-    }
-
-    var visiblePlannerPlans: [OutfitPlan] {
-        switch plannerViewMode {
-        case .week:
-            let start = Calendar.current.startOfDay(for: .now)
-            let end = Calendar.current.date(byAdding: .day, value: 7, to: start) ?? start
-            return plans
-                .filter { $0.date >= start && $0.date < end }
-                .sorted { $0.date < $1.date }
-        case .day:
-            return plans
-                .filter { Calendar.current.isDate($0.date, inSameDayAs: selectedPlannerDay) }
-                .sorted { $0.date < $1.date }
-        }
-    }
-
-    @ViewBuilder
-    func ootdTextField(title: String, text: Binding<String>, prompt: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            TextField(prompt, text: text)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 14)
-                .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
-        }
-    }
-
-    @ViewBuilder
-    func ootdSelectorRow(
-        title: String,
-        subtitle: String,
-        items: [WardrobeItem],
-        selectedID: Binding<PersistentIdentifier?>
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(items, id: \.id) { item in
-                        let isSelected = selectedID.wrappedValue == item.persistentModelID
-
-                        Button {
-                            selectedID.wrappedValue = isSelected ? nil : item.persistentModelID
-                        } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(item.tintColor.gradient)
-                                    .frame(width: 88, height: 88)
-                                    .overlay {
-                                        Image(systemName: item.imageSymbol)
-                                            .font(.title3.weight(.semibold))
-                                            .foregroundStyle(.white.opacity(0.94))
-                                    }
-
-                                Text(item.name)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                            }
-                            .frame(width: 100, alignment: .leading)
-                            .padding(10)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                        .glassCard(
-                            cornerRadius: HomeMetrics.secondaryRadius,
-                            tint: isSelected ? Color.white.opacity(0.26) : Color.white.opacity(0.12)
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-        }
-    }
 }
 
 struct WardrobeItemCard: View {

@@ -4,13 +4,13 @@ enum AppReleaseInfo {
     static let appName = "衣序"
     static let englishAppName = "WearOrder"
 
-    // Fill these before TestFlight/App Store submission, then mirror them in APP_STORE_METADATA.md.
+    // Public release contacts mirrored in APP_STORE_METADATA.md and the legal pages.
     static let privacyPolicyURLString = "https://jhb175.github.io/wearorder-legal/privacy-policy.html"
     static let supportURLString = "https://jhb175.github.io/wearorder-legal/support.html"
     static let supportEmail = "1434143178@231316546.xyz"
 
     static var allowsSampleDataEntry: Bool {
-        #if DEBUG
+        #if INTERNAL_TOOLS
         true
         #else
         false

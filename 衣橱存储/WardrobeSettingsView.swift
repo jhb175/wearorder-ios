@@ -159,7 +159,7 @@ struct WardrobeSettingsView: View {
             } label: {
                 settingsActionRow(
                     title: "重置引导状态",
-                    subtitle: "适合测试新用户流程",
+                    subtitle: "清除已完成标记，空衣橱时可再次显示引导",
                     systemImage: "arrow.counterclockwise"
                 )
             }
