@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 @testable import 衣橱存储
 
@@ -18,5 +19,50 @@ final class WeatherForecastServiceTests: XCTestCase {
 
     func testUnknownCityFallsThroughToSystemGeocoder() {
         XCTAssertNil(WeatherCityFallbackDirectory.city(matching: "一个不存在的城市名称"))
+    }
+
+    func testWeatherKitClassifierKeepsNonConnectivityURLErrorsGeneric() {
+        let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.weatherKitError(from: error),
+            .forecastUnavailable
+        )
+    }
+
+    func testWeatherKitClassifierMapsOfflineToNetworkUnavailable() {
+        let error = URLError(.notConnectedToInternet)
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.weatherKitError(from: error),
+            .networkUnavailable
+        )
+    }
+
+    func testCityLookupClassifierOnlyUsesCityNotFoundForNoResults() {
+        let error = NSError(domain: kCLErrorDomain, code: CLError.Code.geocodeFoundNoResult.rawValue)
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.cityLookupError(from: error, cityName: "测试城市"),
+            .cityNotFound("测试城市")
+        )
+    }
+
+    func testCityLookupClassifierDoesNotTreatUnknownFailuresAsCityNotFound() {
+        let error = NSError(domain: "WeatherCityResolverTests", code: 1)
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.cityLookupError(from: error, cityName: "测试城市"),
+            .cityLookupUnavailable("测试城市")
+        )
+    }
+
+    func testLocationClassifierMapsDeniedToPermissionDenied() {
+        let error = NSError(domain: kCLErrorDomain, code: CLError.Code.denied.rawValue)
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.locationError(from: error),
+            .permissionDenied
+        )
     }
 }

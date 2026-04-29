@@ -130,30 +130,13 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        locationContinuation?.resume(throwing: ForecastError.locationUnavailable)
+        locationContinuation?.resume(throwing: WeatherForecastErrorClassifier.locationError(from: error))
         locationContinuation = nil
     }
 }
 
-private enum WeatherKitForecastClient {
-    static func fetchTodayForecast(
-        at location: CLLocation,
-        sourceTitle: String?
-    ) async throws -> HomeDashboardViewModel.WeatherSnapshot {
-        do {
-            let weather = try await WeatherService.shared.weather(for: location)
-            let attribution = try? await WeatherService.shared.attribution
-            return weather.snapshot(sourceTitle: sourceTitle, attribution: attribution)
-        } catch let error as WeatherForecastService.ForecastError {
-            throw error
-        } catch WeatherError.permissionDenied {
-            throw WeatherForecastService.ForecastError.weatherKitUnavailable
-        } catch {
-            throw mappedForecastError(from: error)
-        }
-    }
-
-    private static func mappedForecastError(from error: Error) -> WeatherForecastService.ForecastError {
+enum WeatherForecastErrorClassifier {
+    static func weatherKitError(from error: Error) -> WeatherForecastService.ForecastError {
         if let urlError = error as? URLError,
            networkURLErrorCodes.contains(urlError.code) {
             return .networkUnavailable
@@ -171,6 +154,30 @@ private enum WeatherKitForecastClient {
         return .forecastUnavailable
     }
 
+    static func cityLookupError(from error: Error, cityName: String) -> WeatherForecastService.ForecastError {
+        if let forecastError = error as? WeatherForecastService.ForecastError {
+            return forecastError
+        }
+
+        switch coreLocationCode(from: error) {
+        case .some(.geocodeFoundNoResult), .some(.geocodeFoundPartialResult):
+            return .cityNotFound(cityName)
+        case .some(.network), .some(.geocodeCanceled), .some:
+            return .cityLookupUnavailable(cityName)
+        case .none:
+            return .cityLookupUnavailable(cityName)
+        }
+    }
+
+    static func locationError(from error: Error) -> WeatherForecastService.ForecastError {
+        switch coreLocationCode(from: error) {
+        case .some(.denied):
+            return .permissionDenied
+        default:
+            return .locationUnavailable
+        }
+    }
+
     private static let networkURLErrorCodes: Set<URLError.Code> = [
         .notConnectedToInternet,
         .networkConnectionLost,
@@ -182,7 +189,7 @@ private enum WeatherKitForecastClient {
 
     private static func isNetworkLikeError(_ error: NSError) -> Bool {
         guard error.domain == NSURLErrorDomain else { return false }
-        return true
+        return networkURLErrorCodes.contains(URLError.Code(rawValue: error.code))
     }
 
     private static func isWeatherKitConfigurationError(_ error: NSError) -> Bool {
@@ -200,6 +207,35 @@ private enum WeatherKitForecastClient {
             || diagnosticText.contains("unauthorized")
             || diagnosticText.contains("jwt")
             || diagnosticText.contains("authenticator")
+    }
+
+    private static func coreLocationCode(from error: Error) -> CLError.Code? {
+        if let coreLocationError = error as? CLError {
+            return coreLocationError.code
+        }
+
+        let nsError = error as NSError
+        guard nsError.domain == kCLErrorDomain else { return nil }
+        return CLError.Code(rawValue: nsError.code)
+    }
+}
+
+private enum WeatherKitForecastClient {
+    static func fetchTodayForecast(
+        at location: CLLocation,
+        sourceTitle: String?
+    ) async throws -> HomeDashboardViewModel.WeatherSnapshot {
+        do {
+            let weather = try await WeatherService.shared.weather(for: location)
+            let attribution = try? await WeatherService.shared.attribution
+            return weather.snapshot(sourceTitle: sourceTitle, attribution: attribution)
+        } catch let error as WeatherForecastService.ForecastError {
+            throw error
+        } catch WeatherError.permissionDenied {
+            throw WeatherForecastService.ForecastError.weatherKitUnavailable
+        } catch {
+            throw WeatherForecastErrorClassifier.weatherKitError(from: error)
+        }
     }
 }
 
@@ -223,16 +259,8 @@ private enum WeatherCityResolver {
             return ResolvedWeatherCity(location: location, sourceTitle: placemark.weatherSourceTitle(fallback: cityName))
         } catch let error as WeatherForecastService.ForecastError {
             throw error
-        } catch let error as CLError {
-            if error.code == .geocodeFoundNoResult || error.code == .geocodeFoundPartialResult {
-                throw WeatherForecastService.ForecastError.cityNotFound(cityName)
-            }
-            if error.code == .network {
-                throw WeatherForecastService.ForecastError.cityLookupUnavailable(cityName)
-            }
-            throw WeatherForecastService.ForecastError.forecastUnavailable
         } catch {
-            throw WeatherForecastService.ForecastError.cityNotFound(cityName)
+            throw WeatherForecastErrorClassifier.cityLookupError(from: error, cityName: cityName)
         }
     }
 }
