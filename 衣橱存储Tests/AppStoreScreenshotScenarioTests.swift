@@ -26,11 +26,13 @@ final class AppStoreScreenshotScenarioTests: XCTestCase {
                 hasHome = true
             case .mainTab(.wardrobe):
                 hasWardrobe = true
-            case .mainTab(.plans):
-                hasPlans = true
             case .mainTab(.settings):
                 hasSettings = true
             case .mainTab(.ootd):
+                break
+            case .ootdSection(.plans):
+                hasPlans = true
+            case .ootdSection(.today), .ootdSection(.library):
                 break
             case .recommendationResult:
                 hasRecommendation = true

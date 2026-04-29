@@ -24,7 +24,7 @@ final class ClothingImageAnalyzerTests: XCTestCase {
             ClothingImageAnalyzer.categorySuggestion(from: [
                 .init(identifier: "running shoe, sneaker", confidence: 0.86)
             ])?.category,
-            .shoes
+            .sneakers
         )
         XCTAssertEqual(
             ClothingImageAnalyzer.categorySuggestion(from: [
@@ -36,19 +36,49 @@ final class ClothingImageAnalyzerTests: XCTestCase {
             ClothingImageAnalyzer.categorySuggestion(from: [
                 .init(identifier: "blue denim jeans", confidence: 0.68)
             ])?.category,
-            .bottom
+            .jeans
         )
         XCTAssertEqual(
             ClothingImageAnalyzer.categorySuggestion(from: [
                 .init(identifier: "cotton shirt", confidence: 0.62)
             ])?.category,
-            .top
+            .shirt
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "white summer dress", confidence: 0.62)
+            ])?.category,
+            .dress
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "cocktail dress", confidence: 0.54)
+            ])?.category,
+            .dress
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "pleated skirt", confidence: 0.62)
+            ])?.category,
+            .pleatedSkirt
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "miniskirt", confidence: 0.62)
+            ])?.category,
+            .miniSkirt
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "wide leg pants", confidence: 0.56)
+            ])?.category,
+            .bottom
         )
         XCTAssertEqual(
             ClothingImageAnalyzer.categorySuggestion(from: [
                 .init(identifier: "wool coat", confidence: 0.58)
             ])?.category,
-            .outerwear
+            .coat
         )
     }
 
@@ -83,6 +113,24 @@ final class ClothingImageAnalyzerTests: XCTestCase {
             ])?.category,
             .hat
         )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "pet clothing", confidence: 0.85)
+            ])?.category,
+            .pet
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "tote bag", confidence: 0.82)
+            ])?.category,
+            .toteBag
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "sunglasses", confidence: 0.81)
+            ])?.category,
+            .eyewear
+        )
     }
 
     func testCategorySuggestionPrefersSpecificLabelOverGenericClothing() throws {
@@ -93,8 +141,49 @@ final class ClothingImageAnalyzerTests: XCTestCase {
             ])
         )
 
-        XCTAssertEqual(suggestion.category, .bag)
+        XCTAssertEqual(suggestion.category, .backpack)
         XCTAssertEqual(suggestion.matchedLabel, "leather backpack")
+    }
+
+    func testCategorySuggestionDoesNotTreatJkUniformTopAsAccessory() throws {
+        let suggestion = try XCTUnwrap(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "bow tie", confidence: 0.86),
+                .init(identifier: "sailor uniform shirt", confidence: 0.58)
+            ])
+        )
+
+        XCTAssertEqual(suggestion.category, .top)
+    }
+
+    func testCategorySuggestionMapsOnePieceAndUniformLabels() {
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "jumpsuit", confidence: 0.72)
+            ])?.category,
+            .jumpsuit
+        )
+        XCTAssertEqual(
+            ClothingImageAnalyzer.categorySuggestion(from: [
+                .init(identifier: "sailor collar blouse", confidence: 0.61),
+                .init(identifier: "necklace", confidence: 0.44)
+            ])?.category,
+            .top
+        )
+    }
+
+    func testStrongNameHintsCanRepairObviousSlotMismatches() {
+        XCTAssertEqual(WardrobeCategory.strongNameHint(for: "裤子 2"), .bottom)
+        XCTAssertTrue(WardrobeCategory.shouldApplyStrongNameHint(.bottom, over: WardrobeCategory.shoes.rawValue))
+
+        XCTAssertEqual(WardrobeCategory.strongNameHint(for: "连衣裙 白色"), .dress)
+        XCTAssertTrue(WardrobeCategory.shouldApplyStrongNameHint(.dress, over: WardrobeCategory.top.rawValue))
+
+        XCTAssertEqual(WardrobeCategory.strongNameHint(for: "jk 上衣"), .top)
+        XCTAssertTrue(WardrobeCategory.shouldApplyStrongNameHint(.top, over: WardrobeCategory.accessory.rawValue))
+
+        XCTAssertEqual(WardrobeCategory.strongNameHint(for: "白色运动鞋"), .sneakers)
+        XCTAssertTrue(WardrobeCategory.shouldApplyStrongNameHint(.sneakers, over: WardrobeCategory.bottom.rawValue))
     }
 
     func testCategorySuggestionReturnsNilForUnrelatedLabels() {
@@ -121,6 +210,58 @@ final class ClothingImageAnalyzerTests: XCTestCase {
 
         XCTAssertEqual(suggestion.colorName, "海军蓝")
         XCTAssertGreaterThan(suggestion.confidence, 0.35)
+    }
+
+    @MainActor
+    func testVisualSilhouetteCanSuggestDress() throws {
+        let data = try XCTUnwrap(silhouetteImageData { context in
+            UIColor.black.setFill()
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: 140, y: 66))
+            path.addLine(to: CGPoint(x: 180, y: 66))
+            path.addLine(to: CGPoint(x: 235, y: 252))
+            path.addLine(to: CGPoint(x: 84, y: 252))
+            path.close()
+            path.fill()
+        })
+
+        let suggestion = try XCTUnwrap(ClothingImageAnalyzer.suggestCategory(from: data))
+        XCTAssertEqual(suggestion.category, .dress)
+    }
+
+    @MainActor
+    func testVisualSilhouetteCanSuggestBottom() throws {
+        let data = try XCTUnwrap(silhouetteImageData { context in
+            UIColor.black.setFill()
+            context.cgContext.fill(CGRect(x: 112, y: 54, width: 38, height: 226))
+            context.cgContext.fill(CGRect(x: 170, y: 54, width: 38, height: 226))
+            context.cgContext.fill(CGRect(x: 112, y: 54, width: 96, height: 42))
+        })
+
+        let suggestion = try XCTUnwrap(ClothingImageAnalyzer.suggestCategory(from: data))
+        XCTAssertEqual(suggestion.category, .bottom)
+    }
+
+    @MainActor
+    func testVisualSilhouetteCanSuggestShoes() throws {
+        let data = try XCTUnwrap(silhouetteImageData { context in
+            UIColor.black.setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: 34, y: 122, width: 118, height: 48))
+            context.cgContext.fillEllipse(in: CGRect(x: 168, y: 122, width: 118, height: 48))
+        })
+
+        let suggestion = try XCTUnwrap(ClothingImageAnalyzer.suggestCategory(from: data))
+        XCTAssertEqual(suggestion.category, .shoes)
+    }
+
+    private func silhouetteImageData(draw: (UIGraphicsImageRendererContext) -> Void) -> Data? {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 320, height: 320))
+        let image = renderer.image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 320, height: 320))
+            draw(context)
+        }
+        return image.pngData()
     }
     #endif
 }

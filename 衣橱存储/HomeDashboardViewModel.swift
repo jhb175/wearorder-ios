@@ -73,6 +73,15 @@ final class HomeDashboardViewModel {
         let humidity: Int
         let windSpeed: Int
         let sourceTitle: String?
+        let providerName: String
+        let providerLegalURL: URL?
+        let providerMarkLightURL: URL?
+        let providerMarkDarkURL: URL?
+        let symbolName: String?
+        let uvIndex: Int?
+        let precipitationChance: Int?
+        let hourlyForecast: [WeatherHourSnapshot]
+        let dailyForecast: [WeatherDaySnapshot]
 
         init(
             kind: WeatherKind,
@@ -83,7 +92,16 @@ final class HomeDashboardViewModel {
             low: Int,
             humidity: Int,
             windSpeed: Int,
-            sourceTitle: String? = nil
+            sourceTitle: String? = nil,
+            providerName: String = "Apple Weather",
+            providerLegalURL: URL? = nil,
+            providerMarkLightURL: URL? = nil,
+            providerMarkDarkURL: URL? = nil,
+            symbolName: String? = nil,
+            uvIndex: Int? = nil,
+            precipitationChance: Int? = nil,
+            hourlyForecast: [WeatherHourSnapshot] = [],
+            dailyForecast: [WeatherDaySnapshot] = []
         ) {
             self.kind = kind
             self.conditionTitle = conditionTitle
@@ -94,6 +112,25 @@ final class HomeDashboardViewModel {
             self.humidity = humidity
             self.windSpeed = windSpeed
             self.sourceTitle = sourceTitle
+            self.providerName = providerName
+            self.providerLegalURL = providerLegalURL
+            self.providerMarkLightURL = providerMarkLightURL
+            self.providerMarkDarkURL = providerMarkDarkURL
+            self.symbolName = symbolName
+            self.uvIndex = uvIndex
+            self.precipitationChance = precipitationChance
+            self.hourlyForecast = hourlyForecast
+            self.dailyForecast = dailyForecast
+        }
+
+        var displaySourceTitle: String {
+            guard let sourceTitle,
+                  !sourceTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else {
+                return providerName
+            }
+
+            return "\(sourceTitle) · \(providerName)"
         }
 
         func overridingTemperature(_ temperature: Int) -> WeatherSnapshot {
@@ -110,9 +147,68 @@ final class HomeDashboardViewModel {
                 low: temperature - lowerOffset,
                 humidity: humidity,
                 windSpeed: windSpeed,
-                sourceTitle: sourceTitle
+                sourceTitle: sourceTitle,
+                providerName: providerName,
+                providerLegalURL: providerLegalURL,
+                providerMarkLightURL: providerMarkLightURL,
+                providerMarkDarkURL: providerMarkDarkURL,
+                symbolName: symbolName,
+                uvIndex: uvIndex,
+                precipitationChance: precipitationChance,
+                hourlyForecast: hourlyForecast,
+                dailyForecast: dailyForecast
             )
         }
+
+        func replacingForecasts(
+            hourlyForecast: [WeatherHourSnapshot],
+            dailyForecast: [WeatherDaySnapshot]
+        ) -> WeatherSnapshot {
+            WeatherSnapshot(
+                kind: kind,
+                conditionTitle: conditionTitle,
+                temperature: temperature,
+                apparentTemperature: apparentTemperature,
+                high: high,
+                low: low,
+                humidity: humidity,
+                windSpeed: windSpeed,
+                sourceTitle: sourceTitle,
+                providerName: providerName,
+                providerLegalURL: providerLegalURL,
+                providerMarkLightURL: providerMarkLightURL,
+                providerMarkDarkURL: providerMarkDarkURL,
+                symbolName: symbolName,
+                uvIndex: uvIndex,
+                precipitationChance: precipitationChance,
+                hourlyForecast: hourlyForecast,
+                dailyForecast: dailyForecast
+            )
+        }
+    }
+
+    struct WeatherHourSnapshot: Identifiable, Equatable {
+        let date: Date
+        let kind: WeatherKind
+        let symbolName: String
+        let temperature: Int
+        let precipitationChance: Int
+        let windSpeed: Int
+
+        var id: Date { date }
+    }
+
+    struct WeatherDaySnapshot: Identifiable, Equatable {
+        let date: Date
+        let kind: WeatherKind
+        let symbolName: String
+        let high: Int
+        let low: Int
+        let precipitationChance: Int
+        let uvIndex: Int
+        let windSpeed: Int
+
+        var id: Date { date }
     }
 
     enum WeatherSourceState: Equatable {
@@ -134,9 +230,9 @@ final class HomeDashboardViewModel {
             case .locating:
                 "正在定位"
             case .loadingForecast:
-                "天气预报"
+                "Apple Weather"
             case .live:
-                "天气预报"
+                "Apple Weather"
             case .permissionDenied, .unavailable:
                 "天气不可用"
             case .loadingCityForecast(let cityName):
@@ -149,20 +245,6 @@ final class HomeDashboardViewModel {
         let title: String
         let message: String
         let actionTitle: String
-        let symbolName: String
-    }
-
-    struct QuickAction: Identifiable {
-        enum Kind: Hashable {
-            case addClothing
-            case recommendOutfit
-            case createOOTD
-            case createPlan
-        }
-
-        let id: Kind
-        let title: String
-        let subtitle: String
         let symbolName: String
     }
 
@@ -189,13 +271,6 @@ final class HomeDashboardViewModel {
     var selectedOccasion: Occasion = .commute
     var weather: WeatherSnapshot?
     var weatherSourceState: WeatherSourceState
-
-    let quickActions: [QuickAction] = [
-        QuickAction(id: .addClothing, title: "添加衣物", subtitle: "录入单品", symbolName: "plus.viewfinder"),
-        QuickAction(id: .recommendOutfit, title: "智能推荐", subtitle: "按天气搭配", symbolName: "sparkles"),
-        QuickAction(id: .createOOTD, title: "开始搭配", subtitle: "组合 OOTD", symbolName: "square.grid.2x2"),
-        QuickAction(id: .createPlan, title: "新建计划", subtitle: "安排未来几天", symbolName: "calendar.badge.plus")
-    ]
 
     init(previewWeather: WeatherKind? = nil) {
         if let previewWeather {
@@ -368,8 +443,16 @@ final class HomeDashboardViewModel {
             return "早晚温差大"
         }
 
+        if let precipitationChance = weather.precipitationChance, precipitationChance >= 50 {
+            return "降水概率 \(precipitationChance)%"
+        }
+
         if weather.windSpeed >= 8 {
             return "注意大风"
+        }
+
+        if let uvIndex = weather.uvIndex, uvIndex >= 6 {
+            return "紫外线 \(uvIndex)"
         }
 
         return "体感 \(weather.apparentTemperature)°"
@@ -433,12 +516,12 @@ final class HomeDashboardViewModel {
             return OutfitRecommendation(outfit: todayOutfit)
         }
 
-        let top = item(namedCategory: "上装") ?? item(namedCategory: "裙装")
-        let bottom = selectedOccasion == .cafe ? item(namedCategory: "裙装") : item(namedCategory: "下装")
+        let top = item(in: WardrobeCategory.topSlotRawValues) ?? item(in: WardrobeCategory.onePieceRawValues)
+        let bottom = selectedOccasion == .cafe ? item(in: WardrobeCategory.lowerBodyRawValues + WardrobeCategory.onePieceRawValues) : item(in: WardrobeCategory.lowerBodyRawValues)
         let hasLargeTemperatureSwing = weather.map { $0.high - $0.low >= 8 } ?? false
-        let layer = selectedMood == .calm || hasLargeTemperatureSwing ? item(namedCategory: "外套") : nil
-        let shoes = item(namedCategory: "鞋履")
-        let bag = item(namedCategory: "包袋")
+        let layer = selectedMood == .calm || hasLargeTemperatureSwing ? item(in: WardrobeCategory.outerwearRawValues) : nil
+        let shoes = item(in: WardrobeCategory.shoesRawValues)
+        let bag = item(in: WardrobeCategory.bagRawValues)
 
         let pieces = [top, bottom, layer, shoes, bag].compactMap { $0 }
         let subtitle: String
@@ -477,6 +560,10 @@ final class HomeDashboardViewModel {
         items.first { $0.category == category }
     }
 
+    private func item(in categories: [String]) -> WardrobeItem? {
+        items.first { categories.contains($0.category) }
+    }
+
     var todayOOTDEmptyMessage: String {
         if items.isEmpty {
             return "先去衣橱录入单品，之后就可以保存第一套今日搭配。"
@@ -494,28 +581,80 @@ final class HomeDashboardViewModel {
     }
 
     static func mockWeather(for kind: WeatherKind) -> WeatherSnapshot {
+        let snapshot: WeatherSnapshot
         switch kind {
         case .sunny:
-            WeatherSnapshot(kind: .sunny, temperature: 27, apparentTemperature: 29, high: 31, low: 22, humidity: 44, windSpeed: 3)
+            snapshot = WeatherSnapshot(kind: .sunny, temperature: 27, apparentTemperature: 29, high: 31, low: 22, humidity: 44, windSpeed: 3, symbolName: kind.symbolName, uvIndex: 7, precipitationChance: 8)
         case .partlyCloudy:
-            WeatherSnapshot(kind: .partlyCloudy, temperature: 24, apparentTemperature: 23, high: 28, low: 19, humidity: 50, windSpeed: 4)
+            snapshot = WeatherSnapshot(kind: .partlyCloudy, temperature: 24, apparentTemperature: 23, high: 28, low: 19, humidity: 50, windSpeed: 4, symbolName: kind.symbolName, uvIndex: 4, precipitationChance: 18)
         case .overcast:
-            WeatherSnapshot(kind: .overcast, temperature: 20, apparentTemperature: 19, high: 22, low: 16, humidity: 68, windSpeed: 3)
+            snapshot = WeatherSnapshot(kind: .overcast, temperature: 20, apparentTemperature: 19, high: 22, low: 16, humidity: 68, windSpeed: 3, symbolName: kind.symbolName, uvIndex: 2, precipitationChance: 25)
         case .drizzle:
-            WeatherSnapshot(kind: .drizzle, temperature: 22, apparentTemperature: 20, high: 26, low: 18, humidity: 77, windSpeed: 4)
+            snapshot = WeatherSnapshot(kind: .drizzle, temperature: 22, apparentTemperature: 20, high: 26, low: 18, humidity: 77, windSpeed: 4, symbolName: kind.symbolName, uvIndex: 2, precipitationChance: 68)
         case .heavyRain:
-            WeatherSnapshot(kind: .heavyRain, temperature: 19, apparentTemperature: 18, high: 21, low: 17, humidity: 90, windSpeed: 6)
+            snapshot = WeatherSnapshot(kind: .heavyRain, temperature: 19, apparentTemperature: 18, high: 21, low: 17, humidity: 90, windSpeed: 6, symbolName: kind.symbolName, uvIndex: 1, precipitationChance: 92)
         case .thunderstorm:
-            WeatherSnapshot(kind: .thunderstorm, temperature: 18, apparentTemperature: 17, high: 20, low: 16, humidity: 93, windSpeed: 7)
+            snapshot = WeatherSnapshot(kind: .thunderstorm, temperature: 18, apparentTemperature: 17, high: 20, low: 16, humidity: 93, windSpeed: 7, symbolName: kind.symbolName, uvIndex: 1, precipitationChance: 95)
         case .windy:
-            WeatherSnapshot(kind: .windy, temperature: 21, apparentTemperature: 19, high: 24, low: 15, humidity: 46, windSpeed: 11)
+            snapshot = WeatherSnapshot(kind: .windy, temperature: 21, apparentTemperature: 19, high: 24, low: 15, humidity: 46, windSpeed: 11, symbolName: kind.symbolName, uvIndex: 3, precipitationChance: 12)
         case .snow:
-            WeatherSnapshot(kind: .snow, temperature: -2, apparentTemperature: -5, high: 1, low: -6, humidity: 82, windSpeed: 4)
+            snapshot = WeatherSnapshot(kind: .snow, temperature: -2, apparentTemperature: -5, high: 1, low: -6, humidity: 82, windSpeed: 4, symbolName: kind.symbolName, uvIndex: 1, precipitationChance: 76)
+        }
+        return snapshot.replacingForecasts(
+            hourlyForecast: sampleHourlyForecast(for: snapshot),
+            dailyForecast: sampleDailyForecast(for: snapshot)
+        )
+    }
+
+    static let placeholderWeather: WeatherSnapshot = {
+        let snapshot = WeatherSnapshot(
+            kind: .partlyCloudy,
+            temperature: 24,
+            apparentTemperature: 23,
+            high: 28,
+            low: 19,
+            humidity: 50,
+            windSpeed: 4,
+            symbolName: WeatherKind.partlyCloudy.symbolName,
+            uvIndex: 4,
+            precipitationChance: 18
+        )
+        return snapshot.replacingForecasts(
+            hourlyForecast: sampleHourlyForecast(for: snapshot),
+            dailyForecast: sampleDailyForecast(for: snapshot)
+        )
+    }()
+
+    private static func sampleHourlyForecast(for snapshot: WeatherSnapshot) -> [WeatherHourSnapshot] {
+        (0..<12).map { index in
+            let date = Calendar.current.date(byAdding: .hour, value: index, to: .now) ?? .now
+            let temperatureOffset = index < 5 ? index / 2 : max(0, 5 - index / 2)
+            return WeatherHourSnapshot(
+                date: date,
+                kind: snapshot.kind,
+                symbolName: snapshot.symbolName ?? snapshot.kind.symbolName,
+                temperature: snapshot.temperature + temperatureOffset,
+                precipitationChance: min(99, max(0, (snapshot.precipitationChance ?? 20) + (index % 3 - 1) * 6)),
+                windSpeed: max(0, snapshot.windSpeed + (index % 4 - 1))
+            )
         }
     }
 
-    static var placeholderWeather: WeatherSnapshot {
-        mockWeather(for: .partlyCloudy)
+    private static func sampleDailyForecast(for snapshot: WeatherSnapshot) -> [WeatherDaySnapshot] {
+        (0..<10).map { index in
+            let date = Calendar.current.date(byAdding: .day, value: index, to: .now) ?? .now
+            let swing = index % 4 - 1
+            return WeatherDaySnapshot(
+                date: date,
+                kind: snapshot.kind,
+                symbolName: snapshot.symbolName ?? snapshot.kind.symbolName,
+                high: snapshot.high + swing,
+                low: snapshot.low + swing - (index % 2),
+                precipitationChance: min(99, max(0, (snapshot.precipitationChance ?? 20) + (index % 5 - 2) * 5)),
+                uvIndex: max(0, (snapshot.uvIndex ?? 3) + (index % 3 - 1)),
+                windSpeed: max(0, snapshot.windSpeed + (index % 3 - 1))
+            )
+        }
     }
 }
 

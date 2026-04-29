@@ -3,6 +3,7 @@ import SwiftUI
 enum AppStoreScreenshotScenario: String, CaseIterable, Identifiable {
     enum Surface {
         case mainTab(ContentView.HomeTab)
+        case ootdSection(ContentView.OOTDWorkspaceSection)
         case recommendationResult
     }
 
@@ -40,7 +41,7 @@ enum AppStoreScreenshotScenario: String, CaseIterable, Identifiable {
         case .recommendationResult:
             .recommendationResult
         case .plannerTimeline:
-            .mainTab(.plans)
+            .ootdSection(.plans)
         case .privacySupport:
             .mainTab(.settings)
         }

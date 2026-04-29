@@ -102,7 +102,7 @@ struct CreateOOTDView: View {
                     )
                     ootdSelectorRow(
                         title: "下装",
-                        subtitle: "下装 / 裙装",
+                        subtitle: "下装 / 裙装 / 一件式",
                         items: ootdItems(for: .bottom),
                         selectedID: $selectedBottomID
                     )
@@ -205,16 +205,7 @@ struct CreateOOTDView: View {
     }
 
     private var createBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private var trimmedTitle: String {
@@ -239,7 +230,11 @@ struct CreateOOTDView: View {
     }
 
     private var canSave: Bool {
-        selectedItem(for: selectedTopID) != nil && selectedItem(for: selectedBottomID) != nil
+        guard let bottomItem = selectedItem(for: selectedBottomID) else { return false }
+        if selectedItem(for: selectedTopID) != nil {
+            return true
+        }
+        return Set(WardrobeCategory.onePieceRawValues).contains(bottomItem.category)
     }
 
     private var coreFlowReadiness: WardrobeCoreFlowReadiness {
@@ -360,17 +355,17 @@ private extension CreateOOTDView {
         var categories: [String] {
             switch self {
             case .top:
-                ["上装"]
+                WardrobeCategory.topSlotRawValues
             case .bottom:
-                ["下装", "裙装"]
+                WardrobeCategory.ootdBottomSlotRawValues
             case .outerwear:
-                ["外套"]
+                WardrobeCategory.outerwearRawValues
             case .shoes:
-                ["鞋履"]
+                WardrobeCategory.shoesRawValues
             case .bag:
-                ["包袋"]
+                WardrobeCategory.bagRawValues
             case .accessory:
-                ["配饰", "帽子"]
+                WardrobeCategory.accessoryRawValues
             }
         }
 
@@ -393,17 +388,17 @@ private extension CreateOOTDView {
         private var nameHints: [String] {
             switch self {
             case .top:
-                ["上衣", "短袖", "长袖", "t恤", "tee", "shirt", "衬衫", "卫衣", "毛衣", "背心", "top"]
+                ["上衣", "短袖", "长袖", "t恤", "tee", "shirt", "衬衫", "卫衣", "毛衣", "针织", "背心", "吊带", "polo", "top"]
             case .bottom:
-                ["裤", "裙", "牛仔", "pants", "trousers", "jeans", "skirt", "shorts"]
+                ["裤", "裙", "连衣裙", "套装", "牛仔", "短裤", "西裤", "运动裤", "连体裤", "泳装", "pants", "trousers", "jeans", "skirt", "dress", "shorts", "jumpsuit"]
             case .outerwear:
-                ["外套", "夹克", "风衣", "大衣", "开衫", "jacket", "coat", "outerwear"]
+                ["外套", "夹克", "风衣", "大衣", "开衫", "羽绒服", "西装外套", "马甲", "jacket", "coat", "outerwear", "blazer", "cardigan"]
             case .shoes:
-                ["鞋", "靴", "sneaker", "shoe", "boot", "loafer"]
+                ["鞋", "靴", "凉鞋", "拖鞋", "高跟", "sneaker", "shoe", "boot", "loafer", "sandal", "heel"]
             case .bag:
-                ["包", "背包", "托特", "handbag", "bag", "tote", "backpack"]
+                ["包", "背包", "托特", "斜挎", "钱包", "行李箱", "handbag", "bag", "tote", "backpack", "wallet", "luggage"]
             case .accessory:
-                ["配饰", "帽", "耳", "项链", "戒指", "手表", "围巾", "accessory", "hat", "cap", "scarf", "watch"]
+                ["配饰", "帽", "耳", "项链", "戒指", "手表", "围巾", "腰带", "眼镜", "袜", "领带", "发饰", "accessory", "hat", "cap", "scarf", "watch", "belt"]
             }
         }
 

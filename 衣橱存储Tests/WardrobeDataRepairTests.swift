@@ -88,7 +88,7 @@ final class WardrobeDataRepairTests: XCTestCase {
         XCTAssertEqual(summary.resolvedTodayDuplicates, 1)
 
         XCTAssertEqual(item.name, "未命名衣物")
-        XCTAssertEqual(item.category, "配饰")
+        XCTAssertEqual(item.category, "其他")
         XCTAssertEqual(item.colorName, "奶油白")
         XCTAssertEqual(item.season, "四季")
         XCTAssertEqual(item.styleTagsText, "通勤, 简洁")

@@ -125,8 +125,8 @@ enum RecommendationEngine {
     ) -> RecommendationResponse {
         let availableItems = items
         let wardrobeGaps = wardrobeGapHints(from: availableItems, input: input)
-        let topPool = sortedCandidates(for: ["上装"], from: availableItems, input: input)
-        let bottomPool = sortedCandidates(for: ["下装", "裙装"], from: availableItems, input: input)
+        let topPool = sortedCandidates(for: WardrobeCategory.topSlotRawValues, from: availableItems, input: input)
+        let bottomPool = sortedCandidates(for: WardrobeCategory.lowerBodyRawValues, from: availableItems, input: input)
 
         guard !topPool.isEmpty, !bottomPool.isEmpty else {
             let message: String
@@ -141,10 +141,10 @@ enum RecommendationEngine {
             return RecommendationResponse(input: input, adjustment: adjustment, results: [], emptyStateMessage: message, wardrobeGaps: wardrobeGaps)
         }
 
-        let outerwearPool = sortedCandidates(for: ["外套"], from: availableItems, input: input)
-        let shoesPool = sortedCandidates(for: ["鞋履"], from: availableItems, input: input)
-        let bagPool = sortedCandidates(for: ["包袋"], from: availableItems, input: input)
-        let accessoryPool = sortedCandidates(for: ["配饰", "帽子"], from: availableItems, input: input)
+        let outerwearPool = sortedCandidates(for: WardrobeCategory.outerwearRawValues, from: availableItems, input: input)
+        let shoesPool = sortedCandidates(for: WardrobeCategory.shoesRawValues, from: availableItems, input: input)
+        let bagPool = sortedCandidates(for: WardrobeCategory.bagRawValues, from: availableItems, input: input)
+        let accessoryPool = sortedCandidates(for: WardrobeCategory.accessoryRawValues, from: availableItems, input: input)
         let candidatePools = RecommendationCandidatePools(
             topPool: topPool,
             bottomPool: bottomPool,
@@ -834,7 +834,7 @@ enum RecommendationEngine {
         var gaps: [RecommendationWardrobeGap] = []
         let categories = Set(items.map(\.category))
 
-        if !categories.contains("鞋履") {
+        if categories.isDisjoint(with: Set(WardrobeCategory.shoesRawValues)) {
             gaps.append(
                 RecommendationWardrobeGap(
                     id: "missing-shoes",
@@ -845,7 +845,7 @@ enum RecommendationEngine {
             )
         }
 
-        if !categories.contains("包袋"), [.commute, .date, .travel].contains(input.occasion) {
+        if categories.isDisjoint(with: Set(WardrobeCategory.bagRawValues)), [.commute, .date, .travel].contains(input.occasion) {
             gaps.append(
                 RecommendationWardrobeGap(
                     id: "missing-bag",
@@ -856,7 +856,7 @@ enum RecommendationEngine {
             )
         }
 
-        if shouldIncludeOuterwear(for: input), !categories.contains("外套") {
+        if shouldIncludeOuterwear(for: input), categories.isDisjoint(with: Set(WardrobeCategory.outerwearRawValues)) {
             gaps.append(
                 RecommendationWardrobeGap(
                     id: "missing-outerwear",
@@ -1000,7 +1000,7 @@ enum RecommendationEngine {
             total += includesOuterwear ? 6 : -5
         }
         if let weather = input.weather, [.drizzle, .heavyRain, .thunderstorm, .windy, .snow].contains(weather) {
-            if items.contains(where: { $0.category == "鞋履" && ["秋冬", "春秋", "四季"].contains($0.season) }) {
+            if items.contains(where: { WardrobeCategory.shoesRawValues.contains($0.category) && ["秋冬", "春秋", "四季"].contains($0.season) }) {
                 total += 3
             }
         }

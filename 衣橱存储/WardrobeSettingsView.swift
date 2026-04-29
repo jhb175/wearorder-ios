@@ -1,9 +1,11 @@
+import AuthenticationServices
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 import UserNotifications
 
 struct WardrobeSettingsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \WardrobeItem.name) private var items: [WardrobeItem]
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
@@ -20,6 +22,7 @@ struct WardrobeSettingsView: View {
     @State private var notificationSnapshot = WardrobeNotificationAuditSnapshot.loading
     @State private var isRepairingData = false
     @State private var feedback: ActionFeedbackState?
+    @StateObject private var appleIDAccountManager = AppleIDAccountManager()
 
     private var healthSnapshot: WardrobeDataHealthSnapshot {
         WardrobeDataHealthSnapshot.make(items: items, outfits: outfits, plans: plans)
@@ -42,11 +45,15 @@ struct WardrobeSettingsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
                     settingsHeroSection
+                    accountSection
                     languageSection
                     onboardingSection
                     dataHealthSection
                     backupSection
                     notificationSection
+                    if AppReleaseInfo.allowsAIStylistEntry {
+                        aiMembershipSection
+                    }
                     privacySection
                     if AppReleaseInfo.allowsSampleDataEntry {
                         sampleDataSection
@@ -128,6 +135,7 @@ struct WardrobeSettingsView: View {
         }
         .task {
             await refreshNotificationSnapshot()
+            await appleIDAccountManager.refreshCredentialState()
         }
         .onChange(of: plans) { _, _ in
             Task { await refreshNotificationSnapshot() }
@@ -181,6 +189,83 @@ struct WardrobeSettingsView: View {
                 metricTile(title: "计划", value: "\(plans.count)")
                 metricTile(title: "照片", value: healthSnapshot.totalPhotoStorageText)
             }
+        }
+    }
+
+    private var accountSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            settingsSectionHeader(title: "账号", subtitle: appleIDAccountManager.credentialStatus.title)
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: appleIDAccountManager.session == nil ? "person.crop.circle.badge.plus" : "person.crop.circle.fill.badge.checkmark")
+                        .font(.headline)
+                        .foregroundStyle(appleIDAccountManager.session == nil ? Color.secondary : Color.green)
+                        .frame(width: 38, height: 38)
+                        .homeCardSurface(weight: .tertiary, cornerRadius: 19)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(appleIDAccountManager.session?.displayName ?? "使用 Apple ID 登录")
+                            .font(.headline)
+                        Text(accountStatusMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 8)
+                }
+
+                if appleIDAccountManager.session == nil {
+                    SignInWithAppleButton(.signIn) { request in
+                        appleIDAccountManager.configure(request)
+                    } onCompletion: { result in
+                        handleAppleIDSignInResult(result)
+                    }
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .whiteOutline : .black)
+                    .frame(height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: HomeMetrics.pillRadius, style: .continuous))
+                    .accessibilityLabel("使用 Apple ID 登录")
+                } else {
+                    HStack(spacing: 10) {
+                        Button {
+                            Task {
+                                await appleIDAccountManager.refreshCredentialState()
+                                feedback = ActionFeedbackState(
+                                    title: "账号状态已检查",
+                                    message: appleIDAccountManager.credentialStatus.subtitle,
+                                    systemImage: "checkmark.seal.fill"
+                                )
+                            }
+                        } label: {
+                            Label("检查状态", systemImage: "arrow.clockwise")
+                                .font(.caption.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 11)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+
+                        Button(role: .destructive) {
+                            appleIDAccountManager.signOutLocal()
+                            feedback = ActionFeedbackState(
+                                title: "已退出本机账号",
+                                message: "仅清除了本机 Apple ID 登录状态，不会删除衣橱数据。",
+                                systemImage: "person.crop.circle.badge.minus"
+                            )
+                        } label: {
+                            Label("退出本机", systemImage: "rectangle.portrait.and.arrow.right")
+                                .font(.caption.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 11)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                    }
+                }
+            }
+            .padding(16)
+            .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.secondaryRadius)
         }
     }
 
@@ -331,6 +416,29 @@ struct WardrobeSettingsView: View {
         }
     }
 
+    private var aiMembershipSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            settingsSectionHeader(title: "AI 会员", subtitle: "Pro 内测")
+
+            NavigationLink {
+                AIStylistPlaceholderView()
+            } label: {
+                settingsActionRow(
+                    title: "AI 搭配师",
+                    subtitle: "即将支持聊天搭配、局部换单品和未来计划",
+                    systemImage: "sparkles"
+                )
+            }
+            .buttonStyle(HomePressableButtonStyle())
+
+            settingsActionRow(
+                title: "会员解锁预留",
+                subtitle: "正式版本会接入 App 内购买和 AI 使用额度",
+                systemImage: "crown.fill"
+            )
+        }
+    }
+
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             settingsSectionHeader(
@@ -368,7 +476,7 @@ struct WardrobeSettingsView: View {
 
             settingsActionRow(
                 title: "本地隐私承诺",
-                subtitle: "不需要账号，不接入广告追踪，不上传衣橱数据",
+                subtitle: "Apple ID 账号只保存在本机 Keychain，不接入广告追踪，不上传衣橱数据",
                 systemImage: "checkmark.shield.fill"
             )
         }
@@ -394,9 +502,9 @@ struct WardrobeSettingsView: View {
 
     private var languageSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            settingsSectionHeader(title: "显示语言", subtitle: currentAppLanguage.displayName)
+            settingsSectionHeader(title: "日期与系统格式", subtitle: currentAppLanguage.displayName)
 
-            Picker("App 语言", selection: $appLanguageRawValue) {
+            Picker("日期语言", selection: $appLanguageRawValue) {
                 ForEach(AppLanguage.allCases) { language in
                     Text(language.displayName).tag(language.rawValue)
                 }
@@ -405,7 +513,7 @@ struct WardrobeSettingsView: View {
             .padding(12)
             .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
 
-            Label("语言切换会立即影响日期、日历、时间等系统控件；全量四语文案会按模块继续本地化。", systemImage: "globe.asia.australia.fill")
+            Label("当前切换只影响日期、日历、时间等系统格式；App 文案保持中文。完整多语言会在后续版本单独上线。", systemImage: "globe.asia.australia.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -432,21 +540,37 @@ struct WardrobeSettingsView: View {
         }
     }
 
+    private var accountStatusMessage: String {
+        if let session = appleIDAccountManager.session {
+            return "\(session.detailText) · \(appleIDAccountManager.credentialStatus.subtitle)"
+        }
+
+        return appleIDAccountManager.credentialStatus.subtitle
+    }
+
+    private func handleAppleIDSignInResult(_ result: Result<ASAuthorization, Error>) {
+        switch appleIDAccountManager.completeSignIn(with: result) {
+        case .success(let session):
+            feedback = ActionFeedbackState(
+                title: "Apple ID 登录成功",
+                message: "已为“\(session.displayName)”保存本机账号状态。",
+                systemImage: "person.crop.circle.fill.badge.checkmark"
+            )
+        case .failure(let message):
+            feedback = ActionFeedbackState(
+                title: "Apple ID 登录未完成",
+                message: message,
+                systemImage: "exclamationmark.triangle.fill"
+            )
+        }
+    }
+
     private var canLoadSampleData: Bool {
         AppReleaseInfo.allowsSampleDataEntry && items.isEmpty && outfits.isEmpty && plans.isEmpty
     }
 
     private var settingsBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.94, green: 0.96, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private func prepareBackupExport() {
@@ -520,6 +644,10 @@ struct WardrobeSettingsView: View {
                 existingOutfits: outfits,
                 existingPlans: plans
             )
+            try modelContext.save()
+            for fileName in summary.imageFileNamesForCleanup {
+                WardrobeImageFileStore.shared.remove(fileName: fileName)
+            }
             let scheduledNotifications = await WardrobeNotificationSynchronizer.synchronizeImportedNotifications(
                 summary.plansForNotificationSync
             )
@@ -532,6 +660,7 @@ struct WardrobeSettingsView: View {
                 systemImage: "externaldrive.badge.checkmark"
             )
         } catch {
+            modelContext.rollback()
             feedback = ActionFeedbackState(
                 title: "备份恢复失败",
                 message: error.localizedDescription,
@@ -612,9 +741,13 @@ struct WardrobeSettingsView: View {
 
     @MainActor
     private func resetAllLocalData() async {
+        let plansToRemoveNotificationsFor = plans
+        let imageFileNamesToRemove = items.flatMap { item in
+            [item.imageFileName, item.thumbnailFileName].compactMap { $0 }
+        }
+
         do {
             for plan in plans {
-                await PlannerNotificationManager.removeNotification(for: plan)
                 modelContext.delete(plan)
             }
             for outfit in outfits {
@@ -625,6 +758,12 @@ struct WardrobeSettingsView: View {
             }
 
             try modelContext.save()
+            for fileName in Set(imageFileNamesToRemove) {
+                WardrobeImageFileStore.shared.remove(fileName: fileName)
+            }
+            for plan in plansToRemoveNotificationsFor {
+                await PlannerNotificationManager.removeNotification(for: plan)
+            }
             await refreshNotificationSnapshot()
             AppHaptics.warning()
             feedback = ActionFeedbackState(
@@ -633,6 +772,7 @@ struct WardrobeSettingsView: View {
                 systemImage: "trash"
             )
         } catch {
+            modelContext.rollback()
             feedback = ActionFeedbackState(
                 title: "清空失败",
                 message: error.localizedDescription,
@@ -809,25 +949,15 @@ private struct PrivacyNoticeView: View {
                 Text("\(AppReleaseInfo.appName)隐私说明")
                     .font(.title2.weight(.bold))
 
-                privacyParagraph("当前版本不需要账号登录，不接入广告追踪，也不会把衣物照片、穿搭记录或计划上传到开发者服务器。")
-                privacyParagraph("衣物、OOTD、计划和照片默认保存在设备本地。你使用系统分享或导出备份时，导出文件由你自己选择保存或发送。")
+                privacyParagraph("当前版本支持使用 Apple ID 登录。App 会把 Apple 返回的用户标识，以及用户同意提供的邮箱和姓名保存在本机 Keychain，用于本机账号状态、后续会员和 AI 功能识别。")
+                privacyParagraph("衣物、OOTD、计划和照片默认保存在设备本地。开启 iCloud 的设备会通过 Apple CloudKit 将衣物元数据、OOTD 和计划同步到用户自己的 iCloud 私有数据库；开发者不会通过自有服务器读取这些内容。")
                 privacyParagraph("App 可能请求相册权限用于选择衣物照片、请求相机权限用于拍摄衣物照片、请求通知权限用于发送穿搭计划提醒、请求定位权限用于获取本地天气预报。拒绝权限不会影响基础记录功能。")
-                privacyParagraph("天气功能会在授权后把当前位置经纬度发送到 Open-Meteo 天气服务以获取当日预报，不会发送衣橱、照片、OOTD 或计划内容。")
-                privacyParagraph("如果后续加入云同步、AI 图片识别、订阅或第三方 SDK，需要同步更新隐私说明、公开隐私政策和 App Store Connect 隐私标签。")
+                privacyParagraph("天气功能会在授权后通过 Apple WeatherKit 使用当前位置经纬度获取当日预报；选择城市天气时，会用系统地理编码将城市名称转换为坐标后查询 Apple Weather。天气请求不会发送衣橱、照片、OOTD 或计划内容。")
+                privacyParagraph("当前版本不接入广告追踪，不出售用户数据。CloudKit 一期只同步结构化衣橱数据；衣物原图仍保存在本机 App 沙盒和用户主动导出的备份中。后续如果加入远程 AI 图片识别、订阅或第三方 SDK，需要同步更新隐私说明、公开隐私政策和 App Store Connect 隐私标签。")
             }
             .padding(24)
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(red: 0.97, green: 0.98, blue: 0.99),
-                    Color(red: 0.95, green: 0.96, blue: 0.98)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
+        .background(AppAdaptiveBackground())
         .navigationTitle("隐私说明")
         .homeInlineNavigationTitle()
     }
@@ -896,17 +1026,7 @@ private struct WardrobeResetConfirmationView: View {
                 }
                 .padding(24)
             }
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.97, green: 0.98, blue: 0.99),
-                        Color(red: 0.95, green: 0.96, blue: 0.98)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            )
+            .background(AppAdaptiveBackground())
             .navigationTitle("清空数据")
             .homeInlineNavigationTitle()
             .toolbar {

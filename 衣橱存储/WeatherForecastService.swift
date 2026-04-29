@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import WeatherKit
 
 final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
     enum ForecastError: Error, Equatable {
@@ -11,6 +12,7 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
         case networkUnavailable
         case invalidCityName
         case cityNotFound(String)
+        case weatherKitUnavailable
 
         var userMessage: String {
             switch self {
@@ -30,6 +32,8 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
                 "请输入城市名称，用于查询天气预报。"
             case .cityNotFound(let cityName):
                 "没有找到“\(cityName)”的天气预报，请检查城市名称后重试。"
+            case .weatherKitUnavailable:
+                "WeatherKit 尚未配置完成，请在 Apple Developer 后台和 Xcode Capability 中启用 WeatherKit。"
             }
         }
     }
@@ -45,7 +49,7 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
     }
 
     func fetchTodayForecast(requestPermissionIfNeeded: Bool) async throws -> HomeDashboardViewModel.WeatherSnapshot {
-        guard CLLocationManager.locationServicesEnabled() else {
+        guard await locationServicesEnabled() else {
             throw ForecastError.locationServicesDisabled
         }
 
@@ -58,10 +62,13 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
         }
 
         let location = try await requestCurrentLocation()
-        return try await OpenMeteoForecastClient.fetchTodayForecast(
-            latitude: location.coordinate.latitude,
-            longitude: location.coordinate.longitude
-        )
+        return try await WeatherKitForecastClient.fetchTodayForecast(at: location, sourceTitle: nil)
+    }
+
+    private func locationServicesEnabled() async -> Bool {
+        await Task.detached(priority: .utility) {
+            CLLocationManager.locationServicesEnabled()
+        }.value
     }
 
     func fetchTodayForecast(cityName: String) async throws -> HomeDashboardViewModel.WeatherSnapshot {
@@ -70,11 +77,10 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
             throw ForecastError.invalidCityName
         }
 
-        let city = try await OpenMeteoGeocodingClient.resolveCity(named: trimmedCityName)
-        return try await OpenMeteoForecastClient.fetchTodayForecast(
-            latitude: city.latitude,
-            longitude: city.longitude,
-            sourceTitle: city.weatherSourceTitle
+        let city = try await WeatherCityResolver.resolveCity(named: trimmedCityName)
+        return try await WeatherKitForecastClient.fetchTodayForecast(
+            at: city.location,
+            sourceTitle: city.sourceTitle
         )
     }
 
@@ -126,178 +132,197 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
     }
 }
 
-private enum OpenMeteoForecastClient {
+private enum WeatherKitForecastClient {
     static func fetchTodayForecast(
-        latitude: Double,
-        longitude: Double,
-        sourceTitle: String? = nil
+        at location: CLLocation,
+        sourceTitle: String?
     ) async throws -> HomeDashboardViewModel.WeatherSnapshot {
-        var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")
-        components?.queryItems = [
-            URLQueryItem(name: "latitude", value: String(format: "%.4f", latitude)),
-            URLQueryItem(name: "longitude", value: String(format: "%.4f", longitude)),
-            URLQueryItem(name: "current", value: "temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code"),
-            URLQueryItem(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min"),
-            URLQueryItem(name: "forecast_days", value: "1"),
-            URLQueryItem(name: "timezone", value: "auto")
-        ]
-
-        guard let url = components?.url else {
-            throw WeatherForecastService.ForecastError.forecastUnavailable
-        }
-
         do {
-            let request = URLRequest(url: url, timeoutInterval: 10)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode)
-            else {
-                throw WeatherForecastService.ForecastError.forecastUnavailable
-            }
-
-            let forecast = try JSONDecoder().decode(OpenMeteoForecastResponse.self, from: data)
-            return forecast.snapshot(sourceTitle: sourceTitle)
+            let weather = try await WeatherService.shared.weather(for: location)
+            let attribution = try? await WeatherService.shared.attribution
+            return weather.snapshot(sourceTitle: sourceTitle, attribution: attribution)
         } catch let error as WeatherForecastService.ForecastError {
             throw error
+        } catch WeatherError.permissionDenied {
+            throw WeatherForecastService.ForecastError.weatherKitUnavailable
+        } catch let error as URLError where error.code == .notConnectedToInternet || error.code == .networkConnectionLost {
+            throw WeatherForecastService.ForecastError.networkUnavailable
         } catch {
             throw WeatherForecastService.ForecastError.networkUnavailable
         }
     }
 }
 
-private enum OpenMeteoGeocodingClient {
-    static func resolveCity(named cityName: String) async throws -> OpenMeteoCity {
-        var components = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")
-        components?.queryItems = [
-            URLQueryItem(name: "name", value: cityName),
-            URLQueryItem(name: "count", value: "1"),
-            URLQueryItem(name: "language", value: "zh"),
-            URLQueryItem(name: "format", value: "json")
-        ]
-
-        guard let url = components?.url else {
-            throw WeatherForecastService.ForecastError.forecastUnavailable
-        }
-
+private enum WeatherCityResolver {
+    static func resolveCity(named cityName: String) async throws -> ResolvedWeatherCity {
         do {
-            let request = URLRequest(url: url, timeoutInterval: 10)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode)
+            let placemarks = try await CLGeocoder().geocodeAddressString(cityName)
+            guard let placemark = placemarks.first,
+                  let location = placemark.location
             else {
-                throw WeatherForecastService.ForecastError.forecastUnavailable
-            }
-
-            let geocoding = try JSONDecoder().decode(OpenMeteoGeocodingResponse.self, from: data)
-            guard let city = geocoding.results?.first else {
                 throw WeatherForecastService.ForecastError.cityNotFound(cityName)
             }
-            return city
+
+            return ResolvedWeatherCity(location: location, sourceTitle: placemark.weatherSourceTitle(fallback: cityName))
         } catch let error as WeatherForecastService.ForecastError {
             throw error
-        } catch {
+        } catch let error as CLError {
+            if error.code == .geocodeFoundNoResult || error.code == .geocodeFoundPartialResult {
+                throw WeatherForecastService.ForecastError.cityNotFound(cityName)
+            }
             throw WeatherForecastService.ForecastError.networkUnavailable
+        } catch {
+            throw WeatherForecastService.ForecastError.cityNotFound(cityName)
         }
     }
 }
 
-private struct OpenMeteoGeocodingResponse: Decodable {
-    let results: [OpenMeteoCity]?
+private struct ResolvedWeatherCity {
+    let location: CLLocation
+    let sourceTitle: String
 }
 
-private struct OpenMeteoCity: Decodable {
-    let name: String
-    let latitude: Double
-    let longitude: Double
-    let admin1: String?
-    let country: String?
-
-    var weatherSourceTitle: String {
-        let locationParts = [name, admin1, country]
+private extension CLPlacemark {
+    func weatherSourceTitle(fallback: String) -> String {
+        let locationParts = [locality, subAdministrativeArea, administrativeArea, country]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        let displayName = Array(locationParts.prefix(2)).joined(separator: " · ")
-        return displayName.isEmpty ? "城市天气" : "\(displayName)天气"
+        let displayName = uniquePrefix(locationParts, maxCount: 2).joined(separator: " · ")
+        return displayName.isEmpty ? fallback : displayName
     }
 }
 
-private struct OpenMeteoForecastResponse: Decodable {
-    let current: CurrentWeather
-    let daily: DailyWeather
-
-    func snapshot(sourceTitle: String?) -> HomeDashboardViewModel.WeatherSnapshot {
-        let weatherCode = daily.weatherCode.first ?? current.weatherCode
-        let condition = OpenMeteoConditionMapper.condition(for: weatherCode)
-        let currentTemperature = Int(current.temperature.rounded())
-        let apparentTemperature = Int(current.apparentTemperature.rounded())
-        let high = Int((daily.high.first ?? current.temperature).rounded())
-        let low = Int((daily.low.first ?? current.temperature).rounded())
-        let humidity = Int(current.humidity.rounded())
-        let windSpeed = Int(current.windSpeed.rounded())
+private extension Weather {
+    func snapshot(sourceTitle: String?, attribution: WeatherAttribution?) -> HomeDashboardViewModel.WeatherSnapshot {
+        let current = currentWeather
+        let today = dailyForecast.forecast.first { Calendar.current.isDate($0.date, inSameDayAs: current.date) }
+            ?? dailyForecast.forecast.first
+        let windSpeed = roundedKPH(current.wind.speed)
+        let condition = WeatherKitConditionMapper.condition(for: current.condition, windSpeed: windSpeed)
+        let dayHigh = today.map { roundedCelsius($0.highTemperature) } ?? roundedCelsius(current.temperature)
+        let dayLow = today.map { roundedCelsius($0.lowTemperature) } ?? roundedCelsius(current.temperature)
+        let precipitationChance = today
+            .map { percent($0.precipitationChance) }
+            ?? hourlyForecast.forecast.first.map { percent($0.precipitationChance) }
 
         return HomeDashboardViewModel.WeatherSnapshot(
             kind: condition.kind,
             conditionTitle: condition.title,
-            temperature: currentTemperature,
-            apparentTemperature: apparentTemperature,
-            high: high,
-            low: low,
-            humidity: humidity,
+            temperature: roundedCelsius(current.temperature),
+            apparentTemperature: roundedCelsius(current.apparentTemperature),
+            high: dayHigh,
+            low: dayLow,
+            humidity: percent(current.humidity),
             windSpeed: windSpeed,
-            sourceTitle: sourceTitle
+            sourceTitle: sourceTitle,
+            providerName: normalizedProviderName(from: attribution),
+            providerLegalURL: attribution?.legalPageURL,
+            providerMarkLightURL: attribution?.combinedMarkLightURL,
+            providerMarkDarkURL: attribution?.combinedMarkDarkURL,
+            symbolName: current.symbolName,
+            uvIndex: current.uvIndex.value,
+            precipitationChance: precipitationChance,
+            hourlyForecast: hourlyForecast.forecast
+                .filter { $0.date >= current.date.addingTimeInterval(-60 * 30) }
+                .prefix(12)
+                .map(HomeDashboardViewModel.WeatherHourSnapshot.init),
+            dailyForecast: dailyForecast.forecast
+                .prefix(10)
+                .map(HomeDashboardViewModel.WeatherDaySnapshot.init)
         )
     }
 
-    struct CurrentWeather: Decodable {
-        let temperature: Double
-        let apparentTemperature: Double
-        let humidity: Double
-        let windSpeed: Double
-        let weatherCode: Int
-
-        enum CodingKeys: String, CodingKey {
-            case temperature = "temperature_2m"
-            case apparentTemperature = "apparent_temperature"
-            case humidity = "relative_humidity_2m"
-            case windSpeed = "wind_speed_10m"
-            case weatherCode = "weather_code"
-        }
-    }
-
-    struct DailyWeather: Decodable {
-        let weatherCode: [Int]
-        let high: [Double]
-        let low: [Double]
-
-        enum CodingKeys: String, CodingKey {
-            case weatherCode = "weather_code"
-            case high = "temperature_2m_max"
-            case low = "temperature_2m_min"
-        }
+    private func normalizedProviderName(from attribution: WeatherAttribution?) -> String {
+        let providerName = attribution?.serviceName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return providerName.isEmpty ? "Apple Weather" : providerName
     }
 }
 
-private enum OpenMeteoConditionMapper {
-    static func condition(for code: Int) -> (kind: HomeDashboardViewModel.WeatherKind, title: String) {
-        switch code {
-        case 0:
-            (.sunny, "晴天")
-        case 1, 2:
-            (.partlyCloudy, "多云")
-        case 3, 45, 48:
+extension HomeDashboardViewModel.WeatherHourSnapshot {
+    nonisolated init(_ hour: HourWeather) {
+        let condition = WeatherKitConditionMapper.condition(
+            for: hour.condition,
+            windSpeed: roundedKPH(hour.wind.speed)
+        )
+        self.init(
+            date: hour.date,
+            kind: condition.kind,
+            symbolName: hour.symbolName,
+            temperature: roundedCelsius(hour.temperature),
+            precipitationChance: percent(hour.precipitationChance),
+            windSpeed: roundedKPH(hour.wind.speed)
+        )
+    }
+}
+
+extension HomeDashboardViewModel.WeatherDaySnapshot {
+    nonisolated init(_ day: DayWeather) {
+        let condition = WeatherKitConditionMapper.condition(
+            for: day.condition,
+            windSpeed: roundedKPH(day.wind.speed)
+        )
+        self.init(
+            date: day.date,
+            kind: condition.kind,
+            symbolName: day.symbolName,
+            high: roundedCelsius(day.highTemperature),
+            low: roundedCelsius(day.lowTemperature),
+            precipitationChance: percent(day.precipitationChance),
+            uvIndex: day.uvIndex.value,
+            windSpeed: roundedKPH(day.wind.speed)
+        )
+    }
+}
+
+private enum WeatherKitConditionMapper {
+    nonisolated static func condition(
+        for condition: WeatherCondition,
+        windSpeed: Int
+    ) -> (kind: HomeDashboardViewModel.WeatherKind, title: String) {
+        switch condition {
+        case .clear, .mostlyClear, .hot:
+            windSpeed >= 10 ? (.windy, "大风") : (.sunny, "晴天")
+        case .partlyCloudy, .sunFlurries, .sunShowers:
+            windSpeed >= 10 ? (.windy, "大风") : (.partlyCloudy, "多云")
+        case .cloudy, .mostlyCloudy, .foggy, .haze, .smoky, .blowingDust:
             (.overcast, "阴天")
-        case 51, 53, 55, 56, 57:
+        case .drizzle, .freezingDrizzle:
             (.drizzle, "小雨")
-        case 61, 63, 80, 81:
+        case .rain:
             (.drizzle, "阵雨")
-        case 65, 66, 67, 82:
+        case .heavyRain, .freezingRain, .hail:
             (.heavyRain, "大雨")
-        case 71, 73, 75, 77, 85, 86:
-            (.snow, "降雪")
-        case 95, 96, 99:
+        case .isolatedThunderstorms, .scatteredThunderstorms, .strongStorms, .thunderstorms, .hurricane, .tropicalStorm:
             (.thunderstorm, "雷雨")
+        case .flurries, .snow, .heavySnow, .blizzard, .blowingSnow, .sleet, .wintryMix, .frigid:
+            (.snow, "降雪")
+        case .breezy, .windy:
+            (.windy, "大风")
         default:
             (.partlyCloudy, "天气预报")
         }
     }
+}
+
+private nonisolated func roundedCelsius(_ measurement: Measurement<UnitTemperature>) -> Int {
+    Int(measurement.converted(to: .celsius).value.rounded())
+}
+
+private nonisolated func roundedKPH(_ measurement: Measurement<UnitSpeed>) -> Int {
+    Int(measurement.converted(to: .kilometersPerHour).value.rounded())
+}
+
+private nonisolated func percent(_ value: Double) -> Int {
+    Int((value * 100).rounded())
+}
+
+private nonisolated func uniquePrefix(_ values: [String], maxCount: Int) -> [String] {
+    var seen: Set<String> = []
+    var result: [String] = []
+    for value in values where !seen.contains(value) {
+        seen.insert(value)
+        result.append(value)
+        if result.count == maxCount { break }
+    }
+    return result
 }

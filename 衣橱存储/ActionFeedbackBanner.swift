@@ -100,7 +100,9 @@ struct ActionFeedbackBanner: View {
             guard let autoDismissDelay, actionTitle == nil, let onDismiss else { return }
             do {
                 try await Task.sleep(for: autoDismissDelay)
-                onDismiss()
+                await MainActor.run {
+                    onDismiss()
+                }
             } catch {
             }
         }

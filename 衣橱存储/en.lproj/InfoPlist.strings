@@ -1,0 +1,5 @@
+"CFBundleDisplayName" = "WardrobeOS";
+"CFBundleName" = "WardrobeOS";
+"NSCameraUsageDescription" = "Take clothing photos and save them to your local wardrobe. Photos stay on this device.";
+"NSPhotoLibraryUsageDescription" = "Select clothing photos and save them to your local wardrobe. Photos stay on this device.";
+"NSLocationWhenInUseUsageDescription" = "Use your location to fetch local weather and create outfit recommendations based on weather and temperature.";

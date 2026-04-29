@@ -95,12 +95,68 @@ if ! grep -q 'NSPrivacyTracking' "衣橱存储/PrivacyInfo.xcprivacy"; then
   issue "PrivacyInfo.xcprivacy does not declare tracking status"
 fi
 
+if ! grep -q 'NSPrivacyAccessedAPICategoryFileTimestamp' "衣橱存储/PrivacyInfo.xcprivacy"; then
+  issue "PrivacyInfo.xcprivacy does not declare file metadata required reason API"
+fi
+
+if ! grep -q '<string>C617.1</string>' "衣橱存储/PrivacyInfo.xcprivacy"; then
+  issue "PrivacyInfo.xcprivacy does not declare app-container file metadata reason C617.1"
+fi
+
 if ! grep -q 'NSPrivacyCollectedDataTypePreciseLocation' "衣橱存储/PrivacyInfo.xcprivacy"; then
   issue "PrivacyInfo.xcprivacy does not declare precise location collection for weather"
 fi
 
-if ! grep -q 'INFOPLIST_KEY_NSLocationWhenInUseUsageDescription' "衣橱存储.xcodeproj/project.pbxproj"; then
-  issue "project does not contain NSLocationWhenInUseUsageDescription for weather"
+if ! grep -q 'NSPrivacyCollectedDataTypeEmailAddress' "衣橱存储/PrivacyInfo.xcprivacy"; then
+  issue "PrivacyInfo.xcprivacy does not declare Apple ID email collection"
+fi
+
+if ! grep -q 'NSPrivacyCollectedDataTypeUserID' "衣橱存储/PrivacyInfo.xcprivacy"; then
+  issue "PrivacyInfo.xcprivacy does not declare Apple ID user identifier collection"
+fi
+
+if ! grep -q 'Apple ID 登录' "PRIVACY.md"; then
+  issue "PRIVACY.md does not describe Sign in with Apple account data"
+fi
+
+if ! grep -q 'NSLocationWhenInUseUsageDescription' "衣橱存储/Info.plist"; then
+  issue "Info.plist does not contain NSLocationWhenInUseUsageDescription for weather"
+fi
+
+if grep -R -q -E 'Open-Meteo|api\.open-meteo|geocoding-api\.open-meteo' "衣橱存储" "APP_STORE_METADATA.md" "PRIVACY.md" "docs" "APP_STORE_CONNECT_PRIVACY_LABELS.md"; then
+  issue "release materials or app code still reference Open-Meteo instead of WeatherKit"
+fi
+
+if ! grep -q 'import WeatherKit' "衣橱存储/WeatherForecastService.swift"; then
+  issue "weather forecast service does not import WeatherKit"
+fi
+
+if ! grep -q 'com.apple.developer.weatherkit' "衣橱存储/衣橱存储.entitlements"; then
+  issue "WeatherKit entitlement is missing from the app entitlements file"
+fi
+
+if ! grep -q 'com.apple.developer.applesignin' "衣橱存储/衣橱存储.entitlements"; then
+  issue "Sign in with Apple entitlement is missing from the app entitlements file"
+fi
+
+if ! grep -q 'com.apple.developer.icloud-services' "衣橱存储/衣橱存储.entitlements"; then
+  issue "CloudKit iCloud service entitlement is missing from the app entitlements file"
+fi
+
+if ! grep -q 'iCloud.com.ramsey.wearorder' "衣橱存储/衣橱存储.entitlements"; then
+  issue "CloudKit container identifier is missing from the app entitlements file"
+fi
+
+if ! grep -q '<string>remote-notification</string>' "衣橱存储/Info.plist"; then
+  issue "remote notification background mode is missing for CloudKit sync"
+fi
+
+if ! grep -q 'cloudKitDatabase: .private(cloudKitContainerIdentifier)' "衣橱存储/____App.swift"; then
+  issue "SwiftData container is not configured for private CloudKit sync"
+fi
+
+if ! grep -q 'WeatherCardAttributionBadge' "衣橱存储/WeatherCardView.swift"; then
+  issue "home weather card does not show WeatherKit attribution"
 fi
 
 RISKY_ASSETS="$(

@@ -23,7 +23,7 @@ struct ClothingDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ClothingImagePreview(imageData: item.imageData, imageSymbol: item.imageSymbol, tintColor: item.tintColor)
+                WardrobeItemImageView(item: item, role: .detail, cornerRadius: 32, symbolFont: .system(size: 56, weight: .semibold))
                     .frame(height: 320)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -139,7 +139,7 @@ struct ClothingDetailView: View {
             usageMetricCard(title: "关联搭配", value: "\(linkedOOTDOutfits.count)", systemImage: "wand.and.stars")
             usageMetricCard(title: "关联计划", value: "\(linkedPlans.count)", systemImage: "calendar")
             usageMetricCard(title: "收藏状态", value: item.isFavorite ? "已收藏" : "未收藏", systemImage: item.isFavorite ? "heart.fill" : "heart")
-            usageMetricCard(title: "图片状态", value: item.imageData == nil ? "缺图片" : "有图片", systemImage: item.imageData == nil ? "photo.badge.exclamationmark" : "photo")
+            usageMetricCard(title: "图片状态", value: item.hasPhoto ? "有图片" : "缺图片", systemImage: item.hasPhoto ? "photo" : "photo.badge.exclamationmark")
             usageMetricCard(title: "资料状态", value: item.needsDetailCompletion ? "待补全" : "完整", systemImage: item.needsDetailCompletion ? "checklist" : "checkmark.seal")
         }
     }
@@ -372,8 +372,8 @@ struct ClothingDetailView: View {
             parts.append("更新：\(updatedAt.formatted(.dateTime.year().month().day().hour().minute()))")
         }
 
-        if let imageData = item.imageData {
-            parts.append("图片：\(ByteCountFormatter.string(fromByteCount: Int64(imageData.count), countStyle: .file))")
+        if item.hasPhoto {
+            parts.append("图片：\(ByteCountFormatter.string(fromByteCount: Int64(item.storedImageByteCount), countStyle: .file))")
         } else {
             parts.append("图片：使用默认图标")
         }
@@ -399,13 +399,18 @@ struct ClothingDetailView: View {
         }
 
         let deletedName = item.name
+        let imageFileNamesToRemove = [item.imageFileName, item.thumbnailFileName].compactMap { $0 }
         modelContext.delete(item)
         do {
             try modelContext.save()
+            for fileName in Set(imageFileNamesToRemove) {
+                WardrobeImageFileStore.shared.remove(fileName: fileName)
+            }
             AppHaptics.warning()
             onDeleted?(deletedName)
             dismiss()
         } catch {
+            modelContext.rollback()
             feedback = ActionFeedbackState(
                 title: "删除失败",
                 message: error.localizedDescription,
@@ -425,16 +430,7 @@ struct ClothingDetailView: View {
     }
 
     private var detailBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 }
 

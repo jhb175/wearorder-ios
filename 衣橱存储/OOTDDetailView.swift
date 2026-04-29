@@ -104,12 +104,14 @@ struct OOTDDetailView: View {
 
                 Spacer()
 
-                if outfit.isToday {
-                    Text("今日搭配")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
+                VStack(alignment: .trailing, spacing: 8) {
+                    if outfit.isToday {
+                        heroBadge("今日搭配")
+                    }
+
+                    if outfit.source != .manual {
+                        heroBadge(outfit.sourceDisplayTitle)
+                    }
                 }
             }
 
@@ -131,6 +133,14 @@ struct OOTDDetailView: View {
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
             }
         }
+    }
+
+    private func heroBadge(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
     }
 
     private var piecesSection: some View {
@@ -190,14 +200,14 @@ struct OOTDDetailView: View {
 
             if linkedPlans.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("还没有计划引用这套搭配。")
+                    Text("还没有计划引用这套 OOTD 预设。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
                     Button {
                         showsCreatePlan = true
                     } label: {
-                        Label("加入计划", systemImage: "calendar.badge.plus")
+                        Label("排到日期", systemImage: "calendar.badge.plus")
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -270,7 +280,7 @@ struct OOTDDetailView: View {
             Button {
                 showsCreatePlan = true
             } label: {
-                Label("加入计划", systemImage: "calendar.badge.plus")
+                Label("排到日期", systemImage: "calendar.badge.plus")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -393,6 +403,12 @@ struct OOTDDetailView: View {
             title: outfit.title + " 副本",
             notes: outfit.notes,
             isToday: false,
+            sourceKind: outfit.sourceKind,
+            aiPrompt: outfit.aiPrompt,
+            aiRecommendationReason: outfit.aiRecommendationReason,
+            aiWeatherSummary: outfit.aiWeatherSummary,
+            aiGeneratedAt: outfit.aiGeneratedAt,
+            aiModelIdentifier: outfit.aiModelIdentifier,
             topItem: outfit.topItem,
             bottomItem: outfit.bottomItem,
             outerwearItem: outfit.outerwearItem,
@@ -435,16 +451,7 @@ struct OOTDDetailView: View {
     }
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private func sectionHeader(title: String, subtitle: String) -> some View {

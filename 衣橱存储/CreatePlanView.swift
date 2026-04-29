@@ -47,7 +47,7 @@ struct CreatePlanView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("新建穿搭计划")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Text("选一个日期，再绑定一套已保存 OOTD，先完成本地计划闭环。")
+                    Text("选一个日期，再套用一套 OOTD 预设。同一套预设可以重复安排到不同日期。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -111,10 +111,10 @@ struct CreatePlanView: View {
 
     private var outfitSelectionSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "绑定 OOTD", subtitle: outfits.isEmpty ? "暂无搭配" : "\(outfits.count) 套")
+            sectionHeader(title: "选择预设", subtitle: outfits.isEmpty ? "暂无预设" : "\(outfits.count) 套")
 
             if outfits.isEmpty {
-                Text("先去 OOTD 页面保存至少一套搭配，这里才能创建计划。")
+                Text("先去 OOTD 的预设库保存至少一套常用组合，这里才能直接排期。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(18)
@@ -201,9 +201,9 @@ struct CreatePlanView: View {
                 .foregroundStyle(.primary.opacity(0.82))
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("已自动预选搭配")
+                Text("已自动套用预设")
                     .font(.subheadline.weight(.semibold))
-                Text("当前正在为“\(outfit.title)”创建计划，你可以直接选日期并保存。")
+                Text("当前正在把“\(outfit.title)”排到日期里，你可以直接选日期并保存。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -294,16 +294,7 @@ struct CreatePlanView: View {
     }
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private func textField(title: String, text: Binding<String>, prompt: String) -> some View {

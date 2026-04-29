@@ -33,6 +33,12 @@ final class WardrobeBackupManagerTests: XCTestCase {
             createdAt: exportedAt,
             updatedAt: exportedAt,
             isToday: true,
+            sourceKind: OOTDSourceKind.ai.rawValue,
+            aiPrompt: "明天出差，想要干净专业。",
+            aiRecommendationReason: "浅色短袖搭配浅蓝牛仔裤，适合温暖雨天。",
+            aiWeatherSummary: "小雨，24 度",
+            aiGeneratedAt: exportedAt,
+            aiModelIdentifier: "wearorder-ai-preview",
             topItem: top,
             bottomItem: bottom
         )
@@ -89,6 +95,12 @@ final class WardrobeBackupManagerTests: XCTestCase {
         XCTAssertEqual(restoredOutfit.topItem?.id, top.id)
         XCTAssertEqual(restoredOutfit.bottomItem?.id, bottom.id)
         XCTAssertTrue(restoredOutfit.isToday)
+        XCTAssertTrue(restoredOutfit.wasGeneratedByAI)
+        XCTAssertEqual(restoredOutfit.aiPrompt, "明天出差，想要干净专业。")
+        XCTAssertEqual(restoredOutfit.aiRecommendationReason, "浅色短袖搭配浅蓝牛仔裤，适合温暖雨天。")
+        XCTAssertEqual(restoredOutfit.aiWeatherSummary, "小雨，24 度")
+        XCTAssertEqual(restoredOutfit.aiGeneratedAt, exportedAt)
+        XCTAssertEqual(restoredOutfit.aiModelIdentifier, "wearorder-ai-preview")
         XCTAssertEqual(restoredPlan.linkedOutfit?.id, outfit.id)
         XCTAssertEqual(restoredPlan.outfitSummary, "白色短袖 + 浅蓝牛仔裤")
     }
@@ -149,6 +161,51 @@ final class WardrobeBackupManagerTests: XCTestCase {
         XCTAssertEqual(existingItem.purchasePrice, 299)
         XCTAssertEqual(existingItem.trimmedPurchaseChannel, "线下门店")
         XCTAssertEqual(existingItem.trimmedCareNotes, "悬挂晾干")
+    }
+
+    func testRestoreDefersOldImageFileCleanupForUpdatedItems() throws {
+        let itemID = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
+        let existingItem = WardrobeItem(
+            id: itemID,
+            name: "旧图片衣物",
+            category: "上装",
+            colorName: "灰色",
+            season: "四季",
+            imageSymbol: "tshirt.fill",
+            imageFileName: "old-display.jpg",
+            thumbnailFileName: "old-thumb.jpg"
+        )
+        let incomingItem = WardrobeItem(
+            id: itemID,
+            name: "新图片衣物",
+            category: "上装",
+            colorName: "白色",
+            season: "四季",
+            imageSymbol: "tshirt.fill",
+            imageData: Data([9, 8, 7])
+        )
+
+        let container = try makeContainer()
+        let context = container.mainContext
+        context.insert(existingItem)
+
+        let backupData = try WardrobeBackupManager.exportData(
+            items: [incomingItem],
+            outfits: [],
+            plans: []
+        )
+        let summary = try WardrobeBackupManager.restore(
+            from: backupData,
+            into: context,
+            existingItems: [existingItem],
+            existingOutfits: [],
+            existingPlans: []
+        )
+
+        XCTAssertEqual(Set(summary.imageFileNamesForCleanup), ["old-display.jpg", "old-thumb.jpg"])
+        XCTAssertNil(existingItem.imageFileName)
+        XCTAssertNil(existingItem.thumbnailFileName)
+        XCTAssertEqual(existingItem.imageData, Data([9, 8, 7]))
     }
 
     private func makeContainer() throws -> ModelContainer {

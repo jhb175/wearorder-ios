@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct WeatherAnimationView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let kind: HomeDashboardViewModel.WeatherKind
     var isActive: Bool = true
 
     var body: some View {
         Group {
-            if isActive {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            if shouldAnimate {
+                TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
                     weatherCanvas(time: timeline.date.timeIntervalSinceReferenceDate, animated: true)
                 }
             } else {
@@ -18,6 +20,10 @@ struct WeatherAnimationView: View {
         .drawingGroup()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    private var shouldAnimate: Bool {
+        isActive && !reduceMotion
     }
 
     private func weatherCanvas(time: TimeInterval, animated: Bool) -> some View {

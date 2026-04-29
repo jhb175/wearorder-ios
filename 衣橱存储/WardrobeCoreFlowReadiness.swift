@@ -4,14 +4,15 @@ struct WardrobeCoreFlowReadiness: Equatable {
     let itemCount: Int
     let topCount: Int
     let bottomCount: Int
+    let onePieceCount: Int
     let outfitCount: Int
 
     var canCreateOOTD: Bool {
-        topCount > 0 && bottomCount > 0
+        (topCount > 0 && bottomCount > 0) || onePieceCount > 0
     }
 
     var canGenerateRecommendation: Bool {
-        canCreateOOTD
+        topCount > 0 && bottomCount > 0
     }
 
     var canCreatePlan: Bool {
@@ -19,15 +20,19 @@ struct WardrobeCoreFlowReadiness: Equatable {
     }
 
     var missingOOTDRequirementText: String {
+        if onePieceCount > 0 {
+            return "已有连衣裙/套装，可先保存一件式 OOTD；也可以继续补齐上装和下装。"
+        }
+
         switch (topCount == 0, bottomCount == 0) {
         case (true, true):
-            "至少需要 1 件上装和 1 件下装/裙装。"
+            return "至少需要 1 件上装和 1 件下装/裙装，或 1 件连衣裙/套装。"
         case (true, false):
-            "还缺 1 件上装。"
+            return "还缺 1 件上装；如果是连衣裙/套装，也可以直接作为一件式搭配。"
         case (false, true):
-            "还缺 1 件下装或裙装。"
+            return "还缺 1 件下装、裙装、连衣裙或套装。"
         case (false, false):
-            "已具备创建 OOTD 的基础单品。"
+            return "已具备创建 OOTD 的基础单品。"
         }
     }
 
@@ -43,7 +48,7 @@ struct WardrobeCoreFlowReadiness: Equatable {
     }
 
     var recommendationReadyMessage: String {
-        "已具备推荐基础：\(topCount) 件上装、\(bottomCount) 件下装/裙装。"
+        return "已具备推荐基础：\(topCount) 件上装、\(bottomCount) 件下装/裙装。"
     }
 
     var recommendationBlockedTitle: String {
@@ -53,6 +58,9 @@ struct WardrobeCoreFlowReadiness: Equatable {
     var recommendationBlockedMessage: String {
         if itemCount == 0 {
             return "推荐至少需要 1 件上装和 1 件下装/裙装。先添加几件常穿单品后再生成。"
+        }
+        if onePieceCount > 0, topCount == 0 || bottomCount == 0 {
+            return "一件式单品可以先手动保存 OOTD；智能推荐还需要至少 1 件上装和 1 件下装/裙装。"
         }
         return "\(missingOOTDRequirementText)补齐后就可以按天气和场景生成推荐。"
     }
@@ -73,16 +81,12 @@ struct WardrobeCoreFlowReadiness: Equatable {
             itemCount: items.count,
             topCount: items.filter { topCategories.contains($0.category) }.count,
             bottomCount: items.filter { bottomCategories.contains($0.category) }.count,
+            onePieceCount: items.filter { onePieceCategories.contains($0.category) }.count,
             outfitCount: outfits.count
         )
     }
 
-    private static let topCategories: Set<String> = [
-        WardrobeCategory.top.rawValue
-    ]
-
-    private static let bottomCategories: Set<String> = [
-        WardrobeCategory.bottom.rawValue,
-        WardrobeCategory.skirt.rawValue
-    ]
+    private static let topCategories = Set(WardrobeCategory.topSlotRawValues)
+    private static let bottomCategories = Set(WardrobeCategory.lowerBodyRawValues)
+    private static let onePieceCategories = Set(WardrobeCategory.onePieceRawValues)
 }

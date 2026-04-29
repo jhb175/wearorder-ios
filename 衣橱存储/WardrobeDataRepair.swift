@@ -180,7 +180,7 @@ enum WardrobeDataRepair {
            plan.outfitSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             normalizedSummary = linkedOutfit.summaryText
         } else {
-            normalizedSummary = fallback(plan.outfitSummary, defaultValue: "未绑定 OOTD")
+            normalizedSummary = fallback(plan.outfitSummary, defaultValue: "未套用预设")
         }
 
         let hasInvalidReminder = plan.reminderEnabled && ((plan.reminderDate ?? .distantPast) <= now)
@@ -253,7 +253,7 @@ enum WardrobeDataRepair {
 
     private static func normalizedCategory(_ category: String) -> String {
         let trimmed = category.trimmingCharacters(in: .whitespacesAndNewlines)
-        return WardrobeCategory(rawValue: trimmed)?.rawValue ?? WardrobeCategory.accessory.rawValue
+        return WardrobeCategory(rawValue: trimmed)?.rawValue ?? WardrobeCategory.other.rawValue
     }
 
     private static func normalizedSeason(_ season: String) -> String {

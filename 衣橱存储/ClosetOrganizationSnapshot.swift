@@ -88,11 +88,20 @@ struct ClosetOrganizationSnapshot: Equatable {
         }
 
         let itemIDsInOutfits = Set(outfits.flatMap { $0.orderedItems.map(\.id) })
-        let missingCoreCategories = [
-            ("上装", [WardrobeCategory.top.rawValue]),
-            ("下装/裙装", [WardrobeCategory.bottom.rawValue, WardrobeCategory.skirt.rawValue]),
-            ("鞋履", [WardrobeCategory.shoes.rawValue])
-        ].compactMap { title, aliases -> String? in
+        let hasOnePiece = WardrobeCategory.onePieceRawValues.contains { itemCountByCategory[$0, default: 0] > 0 }
+        let requiredGroups: [(String, [String])]
+        if hasOnePiece {
+            requiredGroups = [
+                ("鞋履", WardrobeCategory.shoesRawValues)
+            ]
+        } else {
+            requiredGroups = [
+                ("上装", WardrobeCategory.topSlotRawValues),
+                ("下装/裙装/连衣裙", WardrobeCategory.lowerBodyRawValues + WardrobeCategory.onePieceRawValues),
+                ("鞋履", WardrobeCategory.shoesRawValues)
+            ]
+        }
+        let missingCoreCategories = requiredGroups.compactMap { title, aliases -> String? in
             aliases.contains { itemCountByCategory[$0, default: 0] > 0 } ? nil : title
         }
 
@@ -101,17 +110,14 @@ struct ClosetOrganizationSnapshot: Equatable {
             categoryRows: categoryRows,
             missingCoreCategories: missingCoreCategories,
             unusedItemCount: items.filter { !itemIDsInOutfits.contains($0.id) }.count,
-            missingImageCount: items.filter { $0.imageData == nil }.count,
+            missingImageCount: items.filter { !$0.hasPhoto }.count,
             detailGapCount: items.filter(\.needsDetailCompletion).count,
             favoriteCount: items.filter(\.isFavorite).count
         )
     }
 
     private static func isCoreCategory(_ category: String) -> Bool {
-        category == WardrobeCategory.top.rawValue ||
-        category == WardrobeCategory.bottom.rawValue ||
-        category == WardrobeCategory.skirt.rawValue ||
-        category == WardrobeCategory.shoes.rawValue
+        WardrobeCategory(rawValue: category)?.isCoreWardrobeCategory == true
     }
 }
 

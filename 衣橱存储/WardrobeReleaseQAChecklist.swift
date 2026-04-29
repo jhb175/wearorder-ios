@@ -55,13 +55,13 @@ enum WardrobeReleaseQAFlow: String, CaseIterable, Identifiable {
         case .weatherForecast:
             "首页天气卡片和推荐入口"
         case .addClothing:
-            "首页快捷操作或衣橱页加号"
+            "衣橱页加号、空态引导或批量导入入口"
         case .createOOTD:
-            "首页快捷操作、OOTD 页或推荐结果"
+            "首页今日 OOTD、OOTD 页或推荐结果"
         case .createPlanReminder:
-            "首页快捷操作、计划页或 OOTD 详情"
+            "首页计划日历、OOTD 计划页或 OOTD 详情"
         case .backupRestore:
-            "首页数据安全或设置页"
+            "设置页备份与恢复"
         case .privacySupport:
             "设置页隐私与支持"
         }

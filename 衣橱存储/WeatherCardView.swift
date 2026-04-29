@@ -35,6 +35,19 @@ struct WeatherCardView: View {
                     Spacer()
                 }
             }
+
+            if let weather {
+                VStack {
+                    Spacer(minLength: 0)
+                    HStack {
+                        Spacer(minLength: 0)
+                        WeatherCardAttributionBadge(weather: weather)
+                    }
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 16)
+                }
+                .allowsHitTesting(false)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 318)
@@ -43,7 +56,7 @@ struct WeatherCardView: View {
             RoundedRectangle(cornerRadius: 34, style: .continuous)
                 .strokeBorder(cardBorderGradient, lineWidth: 0.9)
         }
-        .shadow(color: .black.opacity(0.10), radius: 24, y: 12)
+        .shadow(color: .black.opacity(0.065), radius: 14, y: 8)
     }
 
     private var glassBaseLayer: some View {
@@ -113,7 +126,7 @@ struct WeatherCardView: View {
 
             Spacer(minLength: 0)
         }
-        .blur(radius: 12)
+        .opacity(0.92)
     }
 
     private var bottomFogLayer: some View {
@@ -156,7 +169,7 @@ struct WeatherCardView: View {
                     .fill(Color.white.opacity(leftRefractionOpacity))
                     .frame(width: 78, height: 220)
                     .rotationEffect(.degrees(-14))
-                    .blur(radius: 16)
+                    .opacity(0.46)
                     .offset(x: -12, y: 8)
 
                 Spacer()
@@ -165,7 +178,7 @@ struct WeatherCardView: View {
                     .fill(Color.white.opacity(rightRefractionOpacity))
                     .frame(width: 88, height: 250)
                     .rotationEffect(.degrees(10))
-                    .blur(radius: 20)
+                    .opacity(0.46)
                     .offset(x: 12)
             }
         }
@@ -301,14 +314,62 @@ struct WeatherCardView: View {
     private var borderBottomOpacity: Double { displayWeather.kind == .heavyRain || displayWeather.kind == .thunderstorm ? 0.20 : 0.24 }
 }
 
+private struct WeatherCardAttributionBadge: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let weather: HomeDashboardViewModel.WeatherSnapshot
+
+    var body: some View {
+        HStack(spacing: 6) {
+            AsyncImage(url: markURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                default:
+                    Text(weather.providerName)
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+            }
+            .frame(maxWidth: 112, maxHeight: 14, alignment: .leading)
+
+            Text("数据来源")
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(Color.black.opacity(0.62))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background {
+            Capsule()
+                .fill(Color.white.opacity(0.62))
+                .overlay {
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.8)
+                }
+        }
+        .accessibilityLabel("天气数据来源：\(weather.providerName)。点按天气卡查看详细归因。")
+    }
+
+    private var markURL: URL? {
+        colorScheme == .dark ? weather.providerMarkLightURL : weather.providerMarkDarkURL
+    }
+}
+
 private struct WeatherAtmosphereLayer: View {
     let weather: HomeDashboardViewModel.WeatherSnapshot
     let isAnimationActive: Bool
 
     var body: some View {
         ZStack {
-            WeatherAnimationView(kind: weather.kind, isActive: isAnimationActive)
-                .opacity(1.0)
+            if isAnimationActive {
+                WeatherAnimationView(kind: weather.kind, isActive: true)
+                    .opacity(1.0)
+            } else {
+                staticAtmosphere
+            }
 
             LinearGradient(
                 colors: [
@@ -336,6 +397,62 @@ private struct WeatherAtmosphereLayer: View {
             }
         }
     }
+
+    private var staticAtmosphere: some View {
+        ZStack {
+            LinearGradient(
+                colors: staticAtmosphereColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Image(systemName: weather.symbolName ?? weather.kind.symbolName)
+                .font(.system(size: 118, weight: .light))
+                .foregroundStyle(.white.opacity(0.30))
+                .offset(x: 86, y: -42)
+
+            Circle()
+                .fill(Color.white.opacity(0.24))
+                .frame(width: 190, height: 190)
+                .opacity(0.42)
+                .offset(x: 100, y: -76)
+        }
+    }
+
+    private var staticAtmosphereColors: [Color] {
+        switch weather.kind {
+        case .sunny:
+            [
+                Color(red: 0.58, green: 0.76, blue: 0.92),
+                Color(red: 0.92, green: 0.88, blue: 0.72),
+                Color(red: 0.80, green: 0.88, blue: 0.92)
+            ]
+        case .partlyCloudy:
+            [
+                Color(red: 0.58, green: 0.72, blue: 0.86),
+                Color(red: 0.82, green: 0.88, blue: 0.90),
+                Color(red: 0.72, green: 0.81, blue: 0.86)
+            ]
+        case .windy:
+            [
+                Color(red: 0.58, green: 0.67, blue: 0.76),
+                Color(red: 0.74, green: 0.82, blue: 0.86),
+                Color(red: 0.65, green: 0.73, blue: 0.78)
+            ]
+        case .overcast, .drizzle, .snow:
+            [
+                Color(red: 0.60, green: 0.68, blue: 0.76),
+                Color(red: 0.76, green: 0.82, blue: 0.86),
+                Color(red: 0.66, green: 0.73, blue: 0.78)
+            ]
+        case .heavyRain, .thunderstorm:
+            [
+                Color(red: 0.36, green: 0.43, blue: 0.54),
+                Color(red: 0.54, green: 0.62, blue: 0.70),
+                Color(red: 0.42, green: 0.48, blue: 0.58)
+            ]
+        }
+    }
 }
 
 private struct WeatherInfoPanel: View {
@@ -348,11 +465,12 @@ private struct WeatherInfoPanel: View {
     let secondaryText: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Label(sourceLabel, systemImage: weather == nil ? "location" : "cloud.sun")
+                Label(sourceLabel, systemImage: weather?.symbolName ?? (weather == nil ? "location" : "cloud.sun"))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(secondaryText)
+                    .lineLimit(1)
 
                 Text(headline)
                     .font(.title3.weight(.semibold))
@@ -373,6 +491,15 @@ private struct WeatherInfoPanel: View {
                 WeatherMetricChip(title: "最低", value: weather.map { "\($0.low)°" } ?? "--")
             }
             .frame(maxWidth: 172)
+
+            if let weather {
+                HStack(spacing: 8) {
+                    WeatherInlineMetric(symbol: "umbrella.percent", value: weather.precipitationChance.map { "\($0)%" } ?? "--")
+                    WeatherInlineMetric(symbol: "sun.max", value: weather.uvIndex.map { "UV \($0)" } ?? "--")
+                    WeatherInlineMetric(symbol: "wind", value: "\(weather.windSpeed)km/h")
+                }
+                .frame(maxWidth: 190, alignment: .leading)
+            }
 
             VStack(alignment: .leading, spacing: 9) {
                 Text("天气搭配提醒")
@@ -401,6 +528,29 @@ private struct WeatherInfoPanel: View {
 
     private var apparentTemperatureText: String {
         weather.map { "体感 \($0.apparentTemperature)°" } ?? "等待定位"
+    }
+}
+
+private struct WeatherInlineMetric: View {
+    let symbol: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.caption2.weight(.bold))
+            Text(value)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .foregroundStyle(Color.white.opacity(0.82))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background {
+            Capsule()
+                .fill(Color.white.opacity(0.13))
+        }
     }
 }
 

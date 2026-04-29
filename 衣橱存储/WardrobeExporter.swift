@@ -110,7 +110,7 @@ enum WardrobeExporter {
         lines.append("")
         lines.append("三、关联计划")
         if linkedPlans.isEmpty {
-            lines.append("暂无计划引用这套搭配。")
+            lines.append("暂无计划引用这套 OOTD 预设。")
         } else {
             for plan in linkedPlans.sorted(by: { $0.date < $1.date }) {
                 lines.append("- \(formattedDate(plan.date)) · \(plan.title)")
@@ -141,7 +141,7 @@ enum WardrobeExporter {
             "颜色：\(item.colorName)",
             "季节：\(item.season)",
             "收藏：\(item.isFavorite ? "是" : "否")",
-            "图片：\(item.imageData == nil ? "默认图标" : "已添加照片")",
+            "图片：\(item.hasPhoto ? "已添加照片" : "默认图标")",
             "创建：\(formattedDateTime(item.createdAt))",
             "更新：\(formattedDateTime(item.lastModifiedAt))",
             ""

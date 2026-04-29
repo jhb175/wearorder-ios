@@ -37,8 +37,8 @@ struct ClothingDraft {
         purchaseDate = item.purchaseDate ?? .now
         purchaseChannel = item.trimmedPurchaseChannel ?? ""
         careNotes = item.trimmedCareNotes ?? ""
-        imageData = item.imageData
-        thumbnailData = item.thumbnailData
+        imageData = item.displayImageData
+        thumbnailData = item.preferredThumbnailData
     }
 
     var trimmedName: String {
@@ -102,6 +102,28 @@ struct ClothingDraft {
     }
 }
 
+struct ProcessedClothingImageImport: Sendable {
+    let originalByteCount: Int
+    let optimizedData: Data
+    let thumbnailData: Data
+    let colorSuggestion: ClothingImageColorSuggestion?
+    let categorySuggestion: ClothingImageCategorySuggestion?
+}
+
+enum ClothingImageImportProcessor {
+    nonisolated static func process(_ imageData: Data) -> ProcessedClothingImageImport {
+        let optimizedData = ImageDataOptimizer.optimizedJPEGData(from: imageData) ?? imageData
+        let thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: optimizedData) ?? optimizedData
+        return ProcessedClothingImageImport(
+            originalByteCount: imageData.count,
+            optimizedData: optimizedData,
+            thumbnailData: thumbnailData,
+            colorSuggestion: ClothingImageAnalyzer.suggestDominantColor(from: optimizedData),
+            categorySuggestion: ClothingImageAnalyzer.suggestCategory(from: optimizedData)
+        )
+    }
+}
+
 struct ClothingEditorForm: View {
     @Binding var draft: ClothingDraft
     let showsSaveSection: Bool
@@ -111,6 +133,8 @@ struct ClothingEditorForm: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var imageImportStatus: ClothingImageImportStatus?
     @State private var imageImportFailureMessage: String?
+    @State private var isImportingImage = false
+    @State private var imageMutationToken = UUID()
     @State private var isGeneratingWhiteBackground = false
     @State private var whiteBackgroundMessage: String?
     @State private var whiteBackgroundFailureMessage: String?
@@ -140,7 +164,7 @@ struct ClothingEditorForm: View {
                             .font(.headline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                     }
-                    .disabled(!draft.isValid)
+                    .disabled(!draft.isValid || isImportingImage || isGeneratingWhiteBackground)
                 }
             }
         }
@@ -153,7 +177,9 @@ struct ClothingEditorForm: View {
         #if canImport(UIKit)
         .sheet(isPresented: $showsCameraCapture) {
             CameraCaptureView { imageData in
-                applyImportedImageData(imageData)
+                Task {
+                    await applyImportedImageData(imageData)
+                }
             }
         }
         #endif
@@ -167,11 +193,12 @@ struct ClothingEditorForm: View {
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 118), spacing: 12)], spacing: 12) {
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        Label(draft.imageData == nil ? "从相册选择" : "替换图片", systemImage: "photo.on.rectangle")
+                        Label(isImportingImage ? "处理中" : (draft.imageData == nil ? "从相册选择" : "替换图片"), systemImage: "photo.on.rectangle")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                     }
+                    .disabled(isImportingImage)
                     .buttonStyle(HomePressableButtonStyle())
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
 
@@ -185,6 +212,7 @@ struct ClothingEditorForm: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                         }
+                        .disabled(isImportingImage)
                         .buttonStyle(HomePressableButtonStyle())
                         .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
                     }
@@ -200,22 +228,12 @@ struct ClothingEditorForm: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                     }
-                    .disabled(draft.imageData == nil || isGeneratingWhiteBackground || !ClothingBackgroundImageProcessor.isWhiteBackgroundGenerationAvailable)
+                    .disabled(draft.imageData == nil || isImportingImage || isGeneratingWhiteBackground || !ClothingBackgroundImageProcessor.isWhiteBackgroundGenerationAvailable)
                     .buttonStyle(HomePressableButtonStyle())
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
 
                     Button {
-                        draft.imageData = nil
-                        draft.thumbnailData = nil
-                        selectedPhotoItem = nil
-                        imageImportStatus = nil
-                        imageImportFailureMessage = nil
-                        whiteBackgroundMessage = nil
-                        whiteBackgroundFailureMessage = nil
-                        imageColorSuggestion = nil
-                        imageCategorySuggestion = nil
-                        didAutoApplyImageColor = false
-                        didAutoApplyImageCategory = false
+                        clearImage()
                     } label: {
                         Label(draft.imageData == nil ? "清除图片" : "移除图片", systemImage: "trash")
                             .font(.subheadline.weight(.semibold))
@@ -227,7 +245,17 @@ struct ClothingEditorForm: View {
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
                 }
 
-                if isGeneratingWhiteBackground {
+                if isImportingImage {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("正在本地处理图片并生成缩略图，照片不会上传。")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+                } else if isGeneratingWhiteBackground {
                     HStack(spacing: 10) {
                         ProgressView()
                         Text("正在本地生成白底图，照片不会上传。")
@@ -289,6 +317,9 @@ struct ClothingEditorForm: View {
     private var infoSection: some View {
         Section("衣物信息") {
             TextField("名称", text: $draft.name)
+                .onChange(of: draft.name) { _, newName in
+                    applyNameCategoryHintIfNeeded(newName)
+                }
 
             Picker("分类", selection: categoryBinding) {
                 ForEach(WardrobeCategory.allCases, id: \.rawValue) { category in
@@ -427,6 +458,18 @@ struct ClothingEditorForm: View {
         draft.styleTagsText = tags.joined(separator: ", ")
     }
 
+    private func applyNameCategoryHintIfNeeded(_ name: String) {
+        guard !hasUserEditedCategory,
+              let hint = WardrobeCategory.strongNameHint(for: name),
+              WardrobeCategory.shouldApplyStrongNameHint(hint, over: draft.category) else {
+            return
+        }
+
+        draft.category = hint.rawValue
+        hasUserEditedCategory = true
+        didAutoApplyImageCategory = true
+    }
+
     private func loadPhotoIfNeeded() async {
         guard let selectedPhotoItem else { return }
         do {
@@ -435,37 +478,49 @@ struct ClothingEditorForm: View {
                 imageImportFailureMessage = "图片导入失败，请重试或换一张图片。"
                 return
             }
-            applyImportedImageData(imageData)
+            await applyImportedImageData(imageData)
         } catch {
             imageImportStatus = nil
             imageImportFailureMessage = "图片导入失败，请重试或换一张图片。"
         }
     }
 
-    private func applyImportedImageData(_ imageData: Data) {
-        let optimizedData = ImageDataOptimizer.optimizedJPEGData(from: imageData) ?? imageData
-        let thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: optimizedData) ?? optimizedData
-        draft.imageData = optimizedData
-        draft.thumbnailData = thumbnailData
+    private func applyImportedImageData(_ imageData: Data) async {
+        let token = UUID()
+        imageMutationToken = token
+        isImportingImage = true
         imageImportFailureMessage = nil
         whiteBackgroundMessage = nil
         whiteBackgroundFailureMessage = nil
+        imageImportStatus = nil
+        imageColorSuggestion = nil
+        imageCategorySuggestion = nil
+        didAutoApplyImageColor = false
+        didAutoApplyImageCategory = false
+
+        let processedImport = await Task.detached(priority: .userInitiated) {
+            ClothingImageImportProcessor.process(imageData)
+        }.value
+
+        guard imageMutationToken == token else { return }
+
+        isImportingImage = false
+        draft.imageData = processedImport.optimizedData
+        draft.thumbnailData = processedImport.thumbnailData
         imageImportStatus = ClothingImageImportStatus(
-            originalByteCount: imageData.count,
-            storedByteCount: optimizedData.count
+            originalByteCount: processedImport.originalByteCount,
+            storedByteCount: processedImport.optimizedData.count
         )
 
-        let suggestion = ClothingImageAnalyzer.suggestDominantColor(from: optimizedData)
+        let suggestion = processedImport.colorSuggestion
         imageColorSuggestion = suggestion
-        didAutoApplyImageColor = false
         if let suggestion, !hasUserEditedColor {
             draft.colorName = suggestion.colorName
             didAutoApplyImageColor = true
         }
 
-        let categorySuggestion = ClothingImageAnalyzer.suggestCategory(from: optimizedData)
+        let categorySuggestion = processedImport.categorySuggestion
         imageCategorySuggestion = categorySuggestion
-        didAutoApplyImageCategory = false
         if let categorySuggestion, !hasUserEditedCategory {
             draft.category = categorySuggestion.categoryName
             didAutoApplyImageCategory = true
@@ -473,7 +528,8 @@ struct ClothingEditorForm: View {
     }
 
     private func generateWhiteBackgroundImage() async {
-        guard let imageData = draft.imageData, !isGeneratingWhiteBackground else { return }
+        guard let imageData = draft.imageData, !isImportingImage, !isGeneratingWhiteBackground else { return }
+        let sourceToken = imageMutationToken
 
         isGeneratingWhiteBackground = true
         whiteBackgroundMessage = nil
@@ -484,8 +540,12 @@ struct ClothingEditorForm: View {
             let processedData = try await Task.detached(priority: .userInitiated) {
                 try ClothingBackgroundImageProcessor.whiteBackgroundJPEGData(from: imageData)
             }.value
+
+            guard imageMutationToken == sourceToken, draft.imageData == imageData else { return }
+
             draft.imageData = processedData
             draft.thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: processedData) ?? processedData
+            imageMutationToken = UUID()
             whiteBackgroundMessage = "已生成白底图，用于衣橱展示和搭配选择。"
             imageImportStatus = ClothingImageImportStatus(
                 originalByteCount: imageData.count,
@@ -493,10 +553,28 @@ struct ClothingEditorForm: View {
             )
             imageImportFailureMessage = nil
         } catch let error as ClothingBackgroundImageProcessingError {
+            guard imageMutationToken == sourceToken else { return }
             whiteBackgroundFailureMessage = error.userMessage
         } catch {
+            guard imageMutationToken == sourceToken else { return }
             whiteBackgroundFailureMessage = "白底图生成失败，请重试或保留原图。"
         }
+    }
+
+    private func clearImage() {
+        imageMutationToken = UUID()
+        isImportingImage = false
+        draft.imageData = nil
+        draft.thumbnailData = nil
+        selectedPhotoItem = nil
+        imageImportStatus = nil
+        imageImportFailureMessage = nil
+        whiteBackgroundMessage = nil
+        whiteBackgroundFailureMessage = nil
+        imageColorSuggestion = nil
+        imageCategorySuggestion = nil
+        didAutoApplyImageColor = false
+        didAutoApplyImageCategory = false
     }
 
     private func prepareSmartFillStateIfNeeded() {

@@ -173,10 +173,10 @@ struct PlanDetailView: View {
 
     private var outfitSelectionSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "绑定 OOTD", subtitle: outfits.isEmpty ? "暂无搭配" : "\(outfits.count) 套")
+            sectionHeader(title: "套用预设", subtitle: outfits.isEmpty ? "暂无预设" : "\(outfits.count) 套")
 
             if outfits.isEmpty {
-                Text("先保存一套 OOTD，再回来把它绑定到这条计划。")
+                Text("先保存一套 OOTD 预设，再回来把它安排到这条计划。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(18)
@@ -224,7 +224,7 @@ struct PlanDetailView: View {
                     Button {
                         selectedOutfitID = nil
                     } label: {
-                        Label("取消绑定 OOTD", systemImage: "link.badge.minus")
+                        Label("移除预设", systemImage: "link.badge.minus")
                             .font(.caption.weight(.semibold))
                     }
                     .buttonStyle(.plain)
@@ -277,9 +277,9 @@ struct PlanDetailView: View {
             .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                sectionHeader(title: "当前 OOTD", subtitle: "未绑定")
+                sectionHeader(title: "当前预设", subtitle: "未绑定")
 
-                Text("这条计划暂时没有绑定 OOTD。保存后首页和计划列表会继续显示计划信息，但不会跳转到搭配详情。")
+                Text("这条计划暂时没有套用 OOTD 预设。保存后首页和计划列表会继续显示计划信息，但不会跳转到搭配详情。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -395,7 +395,7 @@ struct PlanDetailView: View {
         if let selectedOutfit {
             plan.outfitSummary = selectedOutfit.summaryText
         } else if hadLinkedOutfit || plan.outfitSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            plan.outfitSummary = "未绑定 OOTD"
+            plan.outfitSummary = "未套用预设"
         }
         plan.reminderEnabled = reminderEnabled
         plan.reminderDate = reminderEnabled ? combinedReminderDate : nil
@@ -580,16 +580,7 @@ struct PlanDetailView: View {
     }
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private func sectionHeader(title: String, subtitle: String) -> some View {

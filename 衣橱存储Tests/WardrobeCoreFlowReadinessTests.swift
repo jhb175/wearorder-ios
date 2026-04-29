@@ -9,7 +9,7 @@ final class WardrobeCoreFlowReadinessTests: XCTestCase {
         XCTAssertFalse(readiness.canCreateOOTD)
         XCTAssertFalse(readiness.canGenerateRecommendation)
         XCTAssertFalse(readiness.canCreatePlan)
-        XCTAssertEqual(readiness.missingOOTDRequirementText, "至少需要 1 件上装和 1 件下装/裙装。")
+        XCTAssertEqual(readiness.missingOOTDRequirementText, "至少需要 1 件上装和 1 件下装/裙装，或 1 件连衣裙/套装。")
         XCTAssertEqual(readiness.ootdBlockedTitle, "先添加衣物")
         XCTAssertEqual(readiness.recommendationBlockedTitle, "先添加衣物")
     }
@@ -22,8 +22,18 @@ final class WardrobeCoreFlowReadinessTests: XCTestCase {
 
         XCTAssertFalse(readiness.canCreateOOTD)
         XCTAssertFalse(readiness.canGenerateRecommendation)
-        XCTAssertTrue(readiness.ootdBlockedMessage.contains("下装或裙装"))
-        XCTAssertTrue(readiness.recommendationBlockedMessage.contains("下装或裙装"))
+        XCTAssertTrue(readiness.ootdBlockedMessage.contains("下装、裙装"))
+        XCTAssertTrue(readiness.recommendationBlockedMessage.contains("下装、裙装"))
+    }
+
+    func testOnePieceCanCreateOOTDButDoesNotUnlockRecommendationAlone() {
+        let dress = makeItem(name: "白色连衣裙", category: "连衣裙")
+        let readiness = WardrobeCoreFlowReadiness.make(items: [dress], outfits: [])
+
+        XCTAssertTrue(readiness.canCreateOOTD)
+        XCTAssertFalse(readiness.canGenerateRecommendation)
+        XCTAssertTrue(readiness.missingOOTDRequirementText.contains("一件式 OOTD"))
+        XCTAssertTrue(readiness.recommendationBlockedMessage.contains("智能推荐还需要"))
     }
 
     func testTopAndSkirtCanCreateOOTDButPlanRequiresSavedOutfit() {

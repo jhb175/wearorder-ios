@@ -332,7 +332,7 @@ struct RecommendationResultView: View {
                             showSaveFailure(error)
                         }
                     } label: {
-                        Label("加入计划", systemImage: "calendar.badge.plus")
+                        Label("排到日期", systemImage: "calendar.badge.plus")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
@@ -437,6 +437,7 @@ struct RecommendationResultView: View {
             title: result.title,
             notes: result.reasonSummary,
             isToday: marksAsToday,
+            sourceKind: OOTDSourceKind.recommendation.rawValue,
             topItem: result.topItem,
             bottomItem: result.bottomItem,
             outerwearItem: result.outerwearItem,
@@ -480,16 +481,7 @@ struct RecommendationResultView: View {
     }
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private var recommendationConditionText: String {

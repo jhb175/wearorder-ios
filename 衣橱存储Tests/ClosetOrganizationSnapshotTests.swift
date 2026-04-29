@@ -7,7 +7,7 @@ final class ClosetOrganizationSnapshotTests: XCTestCase {
         let snapshot = ClosetOrganizationSnapshot.make(items: [], outfits: [])
 
         XCTAssertEqual(snapshot.itemCount, 0)
-        XCTAssertEqual(snapshot.coverageText, "0/8")
+        XCTAssertEqual(snapshot.coverageText, "0/\(WardrobeCategory.allCases.count)")
         XCTAssertEqual(snapshot.tasks.map(\.kind), [.addClothing])
     }
 
@@ -31,6 +31,15 @@ final class ClosetOrganizationSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot.favoriteCount, 1)
         XCTAssertTrue(snapshot.tasks.map(\.kind).contains(.showNeedsDetails))
         XCTAssertTrue(snapshot.tasks.map(\.kind).contains(.showUnused))
+    }
+
+    func testOnePieceSatisfiesTopAndBottomCoverageForOrganizationTasks() {
+        let dress = makeItem(name: "白色连衣裙", category: "连衣裙", imageData: Data([1]), styleTagsText: "休闲")
+
+        let snapshot = ClosetOrganizationSnapshot.make(items: [dress], outfits: [])
+
+        XCTAssertEqual(snapshot.missingCoreCategories, ["鞋履"])
+        XCTAssertFalse(snapshot.tasks.first?.message.contains("上装") ?? false)
     }
 
     private func makeItem(

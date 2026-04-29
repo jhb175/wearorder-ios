@@ -52,9 +52,9 @@ struct WardrobeDataHealthSnapshot {
 
         let categories = Set(items.map(\.category))
         let missingCoreCategories: [String] = [
-            ("上装", ["上装"]),
-            ("下装", ["下装", "裙装"]),
-            ("鞋履", ["鞋履"])
+            ("上装", WardrobeCategory.topSlotRawValues),
+            ("下装", WardrobeCategory.lowerBodyRawValues + WardrobeCategory.onePieceRawValues),
+            ("鞋履", WardrobeCategory.shoesRawValues)
         ].compactMap { title, aliases -> String? in
             aliases.contains(where: categories.contains) ? nil : title
         }
@@ -93,7 +93,7 @@ struct WardrobeDataHealthSnapshot {
             )
         }
 
-        let largePhotoItems = items.filter { ($0.imageData?.count ?? 0) > 1_500_000 }
+        let largePhotoItems = items.filter { $0.storedImageByteCount > 1_500_000 }
         if !largePhotoItems.isEmpty {
             issues.append(
                 WardrobeDataHealthIssue(
@@ -174,8 +174,8 @@ struct WardrobeDataHealthSnapshot {
                     id: "plans-without-outfit",
                     severity: .info,
                     title: "部分计划没有搭配信息",
-                    message: "\(emptyPlanOutfits.count) 条计划没有关联 OOTD，也没有手写搭配摘要。",
-                    actionHint: "给计划绑定 OOTD"
+                    message: "\(emptyPlanOutfits.count) 条计划没有套用 OOTD 预设，也没有手写搭配摘要。",
+                    actionHint: "给计划套用预设"
                 )
             )
         }
@@ -198,7 +198,7 @@ struct WardrobeDataHealthSnapshot {
         }
 
         let photoBytes = items.reduce(0) { partialResult, item in
-            partialResult + (item.imageData?.count ?? 0)
+            partialResult + item.storedImageByteCount
         }
 
         return WardrobeDataHealthSnapshot(
@@ -206,7 +206,7 @@ struct WardrobeDataHealthSnapshot {
             itemCount: items.count,
             outfitCount: outfits.count,
             planCount: plans.count,
-            photoCount: items.filter { $0.imageData != nil }.count,
+            photoCount: items.filter(\.hasPhoto).count,
             totalPhotoBytes: photoBytes,
             issues: issues.sorted()
         )

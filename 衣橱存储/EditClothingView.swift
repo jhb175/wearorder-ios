@@ -65,6 +65,7 @@ struct EditClothingView: View {
         item.careNotes = draft.careNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : draft.careNotes.trimmingCharacters(in: .whitespacesAndNewlines)
         item.updatedAt = .now
         do {
+            try item.persistInlineImageDataToFiles()
             try modelContext.save()
             AppHaptics.success()
             onSaved?(item)

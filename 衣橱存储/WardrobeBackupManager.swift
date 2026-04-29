@@ -29,6 +29,7 @@ struct WardrobeBackupRestoreSummary {
     let insertedPlans: Int
     let updatedPlans: Int
     let plansForNotificationSync: [OutfitPlan]
+    let imageFileNamesForCleanup: [String]
 
     var totalRecordsChanged: Int {
         insertedItems + updatedItems + insertedOutfits + updatedOutfits + insertedPlans + updatedPlans
@@ -139,10 +140,11 @@ enum WardrobeBackupManager {
         var updatedOutfits = 0
         var insertedPlans = 0
         var updatedPlans = 0
+        var imageFileNamesForCleanup: [String] = []
 
         for record in payload.items {
             if let item = itemLookup[record.id] {
-                record.apply(to: item)
+                imageFileNamesForCleanup.append(contentsOf: record.apply(to: item))
                 updatedItems += 1
             } else {
                 let item = record.makeModel()
@@ -195,7 +197,8 @@ enum WardrobeBackupManager {
             updatedOutfits: updatedOutfits,
             insertedPlans: insertedPlans,
             updatedPlans: updatedPlans,
-            plansForNotificationSync: importedPlans
+            plansForNotificationSync: importedPlans,
+            imageFileNamesForCleanup: Array(Set(imageFileNamesForCleanup))
         )
     }
 
@@ -252,6 +255,7 @@ private struct WardrobeBackupPayload: Codable {
         let purchaseChannel: String?
         let careNotes: String?
         let isFavorite: Bool
+        let importBatchID: UUID?
         let createdAt: Date
         let updatedAt: Date?
 
@@ -262,7 +266,7 @@ private struct WardrobeBackupPayload: Codable {
             colorName = item.colorName
             season = item.season
             imageSymbol = item.imageSymbol
-            imageData = item.imageData
+            imageData = item.displayImageData
             styleTagsText = item.styleTagsText
             notes = item.notes
             brand = item.trimmedBrand
@@ -272,6 +276,7 @@ private struct WardrobeBackupPayload: Codable {
             purchaseChannel = item.trimmedPurchaseChannel
             careNotes = item.trimmedCareNotes
             isFavorite = item.isFavorite
+            importBatchID = item.importBatchID
             createdAt = item.createdAt
             updatedAt = item.updatedAt
         }
@@ -294,17 +299,22 @@ private struct WardrobeBackupPayload: Codable {
                 purchaseChannel: purchaseChannel ?? "",
                 careNotes: careNotes ?? "",
                 isFavorite: isFavorite,
+                importBatchID: importBatchID,
                 createdAt: createdAt,
                 updatedAt: updatedAt
             )
         }
 
-        func apply(to item: WardrobeItem) {
+        func apply(to item: WardrobeItem) -> [String] {
+            let oldImageFileNames = [item.imageFileName, item.thumbnailFileName].compactMap { $0 }
+
             item.name = name
             item.category = category
             item.colorName = colorName
             item.season = season
             item.imageSymbol = imageSymbol
+            item.imageFileName = nil
+            item.thumbnailFileName = nil
             item.imageData = imageData
             item.thumbnailData = imageData.flatMap { ImageDataOptimizer.thumbnailJPEGData(from: $0) }
             item.styleTagsText = styleTagsText
@@ -316,8 +326,11 @@ private struct WardrobeBackupPayload: Codable {
             item.purchaseChannel = normalizedOptional(purchaseChannel)
             item.careNotes = normalizedOptional(careNotes)
             item.isFavorite = isFavorite
+            item.importBatchID = importBatchID
             item.createdAt = createdAt
             item.updatedAt = updatedAt
+
+            return oldImageFileNames
         }
 
         private func normalizedOptional(_ text: String?) -> String? {
@@ -333,6 +346,12 @@ private struct WardrobeBackupPayload: Codable {
         let createdAt: Date
         let updatedAt: Date?
         let isToday: Bool
+        let sourceKind: String?
+        let aiPrompt: String?
+        let aiRecommendationReason: String?
+        let aiWeatherSummary: String?
+        let aiGeneratedAt: Date?
+        let aiModelIdentifier: String?
         let topItemID: UUID?
         let bottomItemID: UUID?
         let outerwearItemID: UUID?
@@ -347,6 +366,12 @@ private struct WardrobeBackupPayload: Codable {
             createdAt = outfit.createdAt
             updatedAt = outfit.updatedAt
             isToday = outfit.isToday
+            sourceKind = outfit.sourceKind
+            aiPrompt = outfit.aiPrompt
+            aiRecommendationReason = outfit.aiRecommendationReason
+            aiWeatherSummary = outfit.aiWeatherSummary
+            aiGeneratedAt = outfit.aiGeneratedAt
+            aiModelIdentifier = outfit.aiModelIdentifier
             topItemID = outfit.topItem?.id
             bottomItemID = outfit.bottomItem?.id
             outerwearItemID = outfit.outerwearItem?.id
@@ -366,6 +391,12 @@ private struct WardrobeBackupPayload: Codable {
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isToday: isToday,
+                sourceKind: sourceKind ?? OOTDSourceKind.manual.rawValue,
+                aiPrompt: aiPrompt,
+                aiRecommendationReason: aiRecommendationReason,
+                aiWeatherSummary: aiWeatherSummary,
+                aiGeneratedAt: aiGeneratedAt,
+                aiModelIdentifier: aiModelIdentifier,
                 topItem: topItemID.flatMap { itemLookup[$0] },
                 bottomItem: bottomItemID.flatMap { itemLookup[$0] },
                 outerwearItem: outerwearItemID.flatMap { itemLookup[$0] },
@@ -385,6 +416,12 @@ private struct WardrobeBackupPayload: Codable {
             outfit.createdAt = createdAt
             outfit.updatedAt = updatedAt
             outfit.isToday = isToday
+            outfit.sourceKind = OOTDSourceKind.normalized(sourceKind).rawValue
+            outfit.aiPrompt = OOTDSourceKind.optionalTrimmed(aiPrompt)
+            outfit.aiRecommendationReason = OOTDSourceKind.optionalTrimmed(aiRecommendationReason)
+            outfit.aiWeatherSummary = OOTDSourceKind.optionalTrimmed(aiWeatherSummary)
+            outfit.aiGeneratedAt = aiGeneratedAt
+            outfit.aiModelIdentifier = OOTDSourceKind.optionalTrimmed(aiModelIdentifier)
             outfit.topItem = topItemID.flatMap { itemLookup[$0] }
             outfit.bottomItem = bottomItemID.flatMap { itemLookup[$0] }
             outfit.outerwearItem = outerwearItemID.flatMap { itemLookup[$0] }

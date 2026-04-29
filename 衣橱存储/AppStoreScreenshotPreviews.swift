@@ -11,6 +11,14 @@ private struct AppStoreScreenshotPreview: View {
             ContentView(previewWeather: scenario.previewWeather, previewTab: tab)
                 .preferredColorScheme(scenario.preferredColorScheme)
                 .modelContainer(previewContainer)
+        case .ootdSection(let section):
+            ContentView(
+                previewWeather: scenario.previewWeather,
+                previewTab: .ootd,
+                previewOOTDSection: section
+            )
+            .preferredColorScheme(scenario.preferredColorScheme)
+            .modelContainer(previewContainer)
         case .recommendationResult:
             NavigationStack {
                 RecommendationResultView(response: recommendationResponse)

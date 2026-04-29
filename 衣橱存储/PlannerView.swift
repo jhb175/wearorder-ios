@@ -2,12 +2,18 @@ import SwiftData
 import SwiftUI
 
 struct PlannerView: View {
+    enum PresentationStyle {
+        case standalone
+        case embedded
+    }
+
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \WardrobeItem.name) private var items: [WardrobeItem]
     @Query(sort: \OutfitPlan.date) private var plans: [OutfitPlan]
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
     @State private var viewMode: PlannerDisplayMode = .week
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
+    @State private var displayedMonth = Calendar.current.startOfMonth(for: .now)
     @State private var searchText = ""
     @State private var selectedFocusFilter: PlannerFocusFilter = .all
     @State private var selectedSortMode: PlannerSortMode = .dateAscending
@@ -15,84 +21,104 @@ struct PlannerView: View {
     @State private var showsCreateOOTD = false
     @State private var showsAddClothing = false
     @State private var feedback: ActionFeedbackState?
+    private let presentationStyle: PresentationStyle
+
+    init(presentationStyle: PresentationStyle = .standalone) {
+        self.presentationStyle = presentationStyle
+    }
 
     var body: some View {
-        NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    headerSection
-                    plannerReminderStatusSection
-                    quickTemplateSection
-                    currentFilterSection
-                    planToolsSection
-                    plansListSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 120)
-            }
-            .background(background)
-            .navigationTitle("计划")
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    ShareLink(
-                        item: plansExportText,
-                        subject: Text("穿搭计划清单"),
-                        message: Text("来自\(AppReleaseInfo.appName)的本地计划清单。")
-                    ) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .disabled(plans.isEmpty)
-                    .accessibilityLabel("导出穿搭计划")
-
-                    Button {
-                        startCreatePlanFlow()
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .buttonStyle(HomeIconButtonStyle())
-                    .accessibilityLabel("新建计划")
-                }
-            }
-            .sheet(item: $activePlanDraft) { draft in
+        Group {
+            if presentationStyle == .standalone {
                 NavigationStack {
-                    CreatePlanView(draft: draft) { plan, notificationResult in
-                        feedback = .planSaved(plan, notificationResult: notificationResult)
-                    }
+                    plannerContent
+                        .navigationTitle("计划")
+                        .toolbar {
+                            plannerToolbar
+                        }
+                }
+            } else {
+                plannerContent
+            }
+        }
+        .sheet(item: $activePlanDraft) { draft in
+            NavigationStack {
+                CreatePlanView(draft: draft) { plan, notificationResult in
+                    feedback = .planSaved(plan, notificationResult: notificationResult)
                 }
             }
-            .sheet(isPresented: $showsCreateOOTD) {
-                NavigationStack {
-                    CreateOOTDView { outfit in
-                        feedback = ActionFeedbackState(
-                            title: outfit.isToday ? "已保存并设为今日搭配" : "已保存为 OOTD",
-                            message: "“\(outfit.title)”已保存，现在可以继续创建计划。"
-                        )
-                    }
-                }
-            }
-            .sheet(isPresented: $showsAddClothing) {
-                AddClothingView { item in
+        }
+        .sheet(isPresented: $showsCreateOOTD) {
+            NavigationStack {
+                CreateOOTDView { outfit in
                     feedback = ActionFeedbackState(
-                        title: "已保存衣物",
-                        message: "“\(item.name)”已经加入数字衣橱。"
+                        title: outfit.isToday ? "已保存并设为今日搭配" : "已保存为 OOTD",
+                        message: "“\(outfit.title)”已保存，现在可以继续创建计划。"
                     )
                 }
             }
-            .safeAreaInset(edge: .top) {
-                if let feedback {
-                    ActionFeedbackBanner(
-                        title: feedback.title,
-                        message: feedback.message,
-                        systemImage: feedback.systemImage,
-                        actionTitle: feedback.actionTitle,
-                        onAction: feedback.onAction,
-                        onDismiss: { self.feedback = nil }
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                }
+        }
+        .sheet(isPresented: $showsAddClothing) {
+            AddClothingView { item in
+                feedback = ActionFeedbackState(
+                    title: "已保存衣物",
+                    message: "“\(item.name)”已经加入数字衣橱。"
+                )
             }
+        }
+        .safeAreaInset(edge: .top) {
+            if let feedback {
+                ActionFeedbackBanner(
+                    title: feedback.title,
+                    message: feedback.message,
+                    systemImage: feedback.systemImage,
+                    actionTitle: feedback.actionTitle,
+                    onAction: feedback.onAction,
+                    onDismiss: { self.feedback = nil }
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+            }
+        }
+    }
+
+    private var plannerContent: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                headerSection
+                plannerCalendarSection
+                plannerReminderStatusSection
+                quickTemplateSection
+                planToolsSection
+                plansListSection
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, presentationStyle == .standalone ? 16 : 6)
+            .padding(.bottom, 120)
+        }
+        .background(background)
+    }
+
+    @ToolbarContentBuilder
+    private var plannerToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ShareLink(
+                item: plansExportText,
+                subject: Text("穿搭计划清单"),
+                message: Text("来自\(AppReleaseInfo.appName)的本地计划清单。")
+            ) {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .disabled(plans.isEmpty)
+            .accessibilityLabel("导出穿搭计划")
+
+            Button {
+                startCreatePlanFlow()
+            } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(HomeIconButtonStyle())
+            .accessibilityLabel("新建计划")
         }
     }
 
@@ -100,12 +126,12 @@ struct PlannerView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("安排未来几天")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-            Text("把已保存的 OOTD 绑定到某一天，再按需要设置一次本地提醒。")
+            Text("把已保存的 OOTD 预设安排到某一天，再按需要设置一次本地提醒。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
                     HStack(spacing: 12) {
-                        summaryChip(title: "已存 OOTD", value: "\(outfits.count)")
+                        summaryChip(title: "OOTD 预设", value: "\(outfits.count)")
                         summaryChip(title: "计划总数", value: "\(plans.count)")
                         summaryChip(title: "同日多排", value: "\(conflictingPlansCount)")
                     }
@@ -211,20 +237,238 @@ struct PlannerView: View {
         }
     }
 
-    private var currentFilterSection: some View {
+    private var plannerCalendarSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Picker("视图模式", selection: $viewMode) {
-                ForEach(PlannerDisplayMode.allCases, id: \.self) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            sectionHeader(title: "计划日历", subtitle: calendarSectionSubtitle)
 
-            if viewMode == .day {
-                DatePicker("查看日期", selection: $selectedDay, displayedComponents: .date)
-                    .datePickerStyle(.compact)
+            VStack(alignment: .leading, spacing: 16) {
+                calendarMonthHeader
+
+                Picker("计划范围", selection: $viewMode) {
+                    ForEach(PlannerDisplayMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                calendarWeekdayHeader
+
+                LazyVGrid(columns: calendarColumns, spacing: 8) {
+                    ForEach(calendarDays) { day in
+                        calendarDayButton(day)
+                    }
+                }
+
+                selectedDayPlanPreview
+            }
+            .padding(14)
+            .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
+        }
+    }
+
+    private var calendarMonthHeader: some View {
+        HStack(spacing: 10) {
+            Button {
+                moveDisplayedMonth(by: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.subheadline.weight(.bold))
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(HomePressableButtonStyle())
+            .homeCardSurface(weight: .tertiary, cornerRadius: 17)
+            .accessibilityLabel("上个月")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayedMonth.formatted(.dateTime.year().month(.wide).locale(Locale(identifier: "zh_Hans_CN"))))
+                    .font(.headline.weight(.semibold))
+                Text("点选日期查看当天 OOTD 计划")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                selectToday()
+            } label: {
+                Text("今天")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .frame(height: 34)
+            }
+            .buttonStyle(HomePressableButtonStyle())
+            .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+
+            Button {
+                moveDisplayedMonth(by: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.bold))
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(HomePressableButtonStyle())
+            .homeCardSurface(weight: .tertiary, cornerRadius: 17)
+            .accessibilityLabel("下个月")
+        }
+    }
+
+    private var calendarWeekdayHeader: some View {
+        LazyVGrid(columns: calendarColumns, spacing: 8) {
+            ForEach(calendarWeekdaySymbols, id: \.self) { symbol in
+                Text(symbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    private func calendarDayButton(_ day: PlannerCalendarDay) -> some View {
+        let calendar = Calendar.current
+        let isSelected = calendar.isDate(day.date, inSameDayAs: selectedDay)
+        let isToday = calendar.isDateInToday(day.date)
+        let firstPlan = day.plans.first
+
+        return Button {
+            selectCalendarDay(day.date)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(day.date.formatted(.dateTime.day().locale(Locale(identifier: "zh_Hans_CN"))))
+                        .font(.caption.weight(isSelected || isToday ? .bold : .semibold))
+                        .foregroundStyle(isSelected ? .white : .primary)
+
+                    Spacer(minLength: 0)
+
+                    if !day.plans.isEmpty {
+                        Text("\(day.plans.count)")
+                            .font(.caption2.monospacedDigit().weight(.bold))
+                            .foregroundStyle(isSelected ? .white : .accentColor)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? Color.white.opacity(0.2) : Color.accentColor.opacity(0.12))
+                            )
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                if let firstPlan {
+                    Text(firstPlan.linkedOutfit?.title ?? firstPlan.title)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(isSelected ? .white.opacity(0.9) : .secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                } else {
+                    Circle()
+                        .fill(isToday ? Color.accentColor.opacity(0.5) : Color.clear)
+                        .frame(width: 4, height: 4)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+            .padding(8)
+            .background(calendarDayBackground(isSelected: isSelected, isToday: isToday))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(
+                        isToday && !isSelected ? Color.accentColor.opacity(0.35) : Color.white.opacity(0.12),
+                        lineWidth: 1
+                    )
+            )
+            .opacity(day.isInDisplayedMonth ? 1 : 0.38)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(calendarDayAccessibilityLabel(day))
+    }
+
+    private var selectedDayPlanPreview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(selectedDay.formatted(.dateTime.month().day().weekday(.wide).locale(Locale(identifier: "zh_Hans_CN"))))
+                        .font(.subheadline.weight(.semibold))
+                    Text(selectedDayPlans.isEmpty ? "这天还没有 OOTD 计划" : "\(selectedDayPlans.count) 条 OOTD 计划")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    startCreatePlanFlow(on: selectedDay)
+                } label: {
+                    Label("安排这天", systemImage: "calendar.badge.plus")
+                        .font(.caption.weight(.semibold))
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(HomePressableButtonStyle())
+                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+            }
+
+            if selectedDayPlans.isEmpty {
+                Text("可以把已保存的 OOTD 预设放到这一天，后续也能接入旅行、天气和 AI 推荐。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .homeCardSurface(weight: .tertiary, cornerRadius: 16)
+            } else {
+                ForEach(selectedDayPlans.prefix(2), id: \.id) { plan in
+                    NavigationLink {
+                        PlanDetailView(plan: plan)
+                    } label: {
+                        calendarPlanPreviewRow(plan)
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+                }
+
+                if selectedDayPlans.count > 2 {
+                    Text("还有 \(selectedDayPlans.count - 2) 条计划，可在下方列表继续查看。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private func calendarPlanPreviewRow(_ plan: OutfitPlan) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: plan.linkedOutfit == nil ? "calendar" : "checkmark.seal")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(plan.linkedOutfit == nil ? Color.secondary : Color.green)
+                .frame(width: 30, height: 30)
+                .homeCardSurface(weight: .tertiary, cornerRadius: 15)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(plan.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(plan.linkedOutfit?.summaryText ?? plan.outfitSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            if plan.reminderEnabled, let reminderDate = plan.reminderDate {
+                Text(reminderDate.formatted(.dateTime.hour().minute().locale(Locale(identifier: "zh_Hans_CN"))))
+                    .font(.caption.monospacedDigit().weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(10)
+        .homeCardSurface(weight: .tertiary, cornerRadius: 16)
     }
 
     @ViewBuilder
@@ -365,6 +609,10 @@ struct PlannerView: View {
         )
     }
 
+    private var selectedDayPlans: [OutfitPlan] {
+        sortedPlans(plans.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDay) })
+    }
+
     private var scopedPlans: [OutfitPlan] {
         switch viewMode {
         case .week:
@@ -374,6 +622,52 @@ struct PlannerView: View {
         case .day:
             return plans.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDay) }
         }
+    }
+
+    private var calendarSectionSubtitle: String {
+        if selectedDayPlans.isEmpty {
+            return selectedDay.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_Hans_CN")))
+        }
+        return "\(selectedDay.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_Hans_CN")))) · \(selectedDayPlans.count) 条"
+    }
+
+    private var calendarDays: [PlannerCalendarDay] {
+        let calendar = Calendar.current
+        let monthStart = calendar.startOfMonth(for: displayedMonth)
+        let dayRange = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<1
+        let leadingDays = calendar.mondayFirstWeekdayOffset(for: monthStart)
+        let totalDayCount = ((leadingDays + dayRange.count + 6) / 7) * 7
+        let gridStart = calendar.date(byAdding: .day, value: -leadingDays, to: monthStart) ?? monthStart
+        let groupedPlans = Dictionary(grouping: plans) { plan in
+            calendar.startOfDay(for: plan.date)
+        }
+
+        return (0..<totalDayCount).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: gridStart) else {
+                return nil
+            }
+            let dayKey = calendar.startOfDay(for: date)
+            let dayPlans = (groupedPlans[dayKey] ?? []).sorted { lhs, rhs in
+                if lhs.date == rhs.date {
+                    return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+                }
+                return lhs.date < rhs.date
+            }
+
+            return PlannerCalendarDay(
+                date: dayKey,
+                isInDisplayedMonth: calendar.isDate(date, equalTo: monthStart, toGranularity: .month),
+                plans: dayPlans
+            )
+        }
+    }
+
+    private var calendarColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 36), spacing: 8), count: 7)
+    }
+
+    private var calendarWeekdaySymbols: [String] {
+        ["一", "二", "三", "四", "五", "六", "日"]
     }
 
     private var planListSubtitle: String {
@@ -445,25 +739,16 @@ struct PlannerView: View {
 
     private var defaultTemplateOutfitTitle: String {
         if let todayOutfit = outfits.first(where: \.isToday) {
-            return "默认带入今日 OOTD · \(todayOutfit.title)"
+            return "默认套用今日预设 · \(todayOutfit.title)"
         }
         if let firstOutfit = outfits.first {
-            return "默认带入最近 OOTD · \(firstOutfit.title)"
+            return "默认套用最近预设 · \(firstOutfit.title)"
         }
         return "先保存 OOTD"
     }
 
     private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.97, green: 0.98, blue: 0.99),
-                Color(red: 0.93, green: 0.95, blue: 0.98),
-                Color(red: 0.96, green: 0.95, blue: 0.93)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppAdaptiveBackground()
     }
 
     private func summaryChip(title: String, value: String) -> some View {
@@ -548,13 +833,55 @@ struct PlannerView: View {
         .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
     }
 
+    @ViewBuilder
+    private func calendarDayBackground(isSelected: Bool, isToday: Bool) -> some View {
+        if isSelected {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.accentColor.gradient)
+        } else if isToday {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.accentColor.opacity(0.12))
+        } else {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.12))
+        }
+    }
+
+    private func calendarDayAccessibilityLabel(_ day: PlannerCalendarDay) -> String {
+        let dateText = day.date.formatted(.dateTime.month().day().weekday(.wide).locale(Locale(identifier: "zh_Hans_CN")))
+        if day.plans.isEmpty {
+            return "\(dateText)，没有计划"
+        }
+        return "\(dateText)，\(day.plans.count) 条 OOTD 计划"
+    }
+
+    private func selectCalendarDay(_ date: Date) {
+        selectedDay = Calendar.current.startOfDay(for: date)
+        displayedMonth = Calendar.current.startOfMonth(for: date)
+        viewMode = .day
+        AppHaptics.selection()
+    }
+
+    private func selectToday() {
+        let today = Calendar.current.startOfDay(for: .now)
+        selectedDay = today
+        displayedMonth = Calendar.current.startOfMonth(for: today)
+        viewMode = .day
+        AppHaptics.selection()
+    }
+
+    private func moveDisplayedMonth(by value: Int) {
+        displayedMonth = Calendar.current.date(byAdding: .month, value: value, to: displayedMonth) ?? displayedMonth
+        AppHaptics.selection()
+    }
+
     private func clearPlanFilters() {
         searchText = ""
         selectedFocusFilter = .all
         AppHaptics.selection()
     }
 
-    private func startCreatePlanFlow() {
+    private func startCreatePlanFlow(on date: Date? = nil) {
         guard coreFlowReadiness.canCreatePlan else {
             if coreFlowReadiness.canCreateOOTD {
                 feedback = ActionFeedbackState(
@@ -580,7 +907,27 @@ struct PlannerView: View {
             return
         }
 
-        activePlanDraft = .blank(selectedOutfitID: defaultTemplateOutfitID)
+        activePlanDraft = planDraft(on: date)
+    }
+
+    private func planDraft(on date: Date?) -> PlanCreationDraft {
+        guard let date else {
+            return .blank(selectedOutfitID: defaultTemplateOutfitID)
+        }
+
+        let calendar = Calendar.current
+        let planDate = calendar.startOfDay(for: date)
+        let reminderTime = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: planDate) ?? planDate
+
+        return PlanCreationDraft(
+            selectedOutfitID: defaultTemplateOutfitID,
+            title: "新的穿搭计划",
+            occasion: "穿搭安排",
+            notes: "",
+            date: planDate,
+            reminderEnabled: reminderTime > .now,
+            reminderTime: reminderTime
+        )
     }
 
     @MainActor
@@ -681,6 +1028,14 @@ struct PlannerView: View {
 }
 
 private extension PlannerView {
+    struct PlannerCalendarDay: Identifiable {
+        let date: Date
+        let isInDisplayedMonth: Bool
+        let plans: [OutfitPlan]
+
+        var id: Date { date }
+    }
+
     enum PlannerDisplayMode: CaseIterable {
         case week
         case day
@@ -751,6 +1106,17 @@ private extension PlannerView {
                 "标题"
             }
         }
+    }
+}
+
+private extension Calendar {
+    func startOfMonth(for date: Date) -> Date {
+        self.date(from: dateComponents([.year, .month], from: date)) ?? startOfDay(for: date)
+    }
+
+    func mondayFirstWeekdayOffset(for date: Date) -> Int {
+        let weekday = component(.weekday, from: date)
+        return (weekday + 5) % 7
     }
 }
 

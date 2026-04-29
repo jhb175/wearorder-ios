@@ -4,25 +4,34 @@ import SwiftUI
 
 @Model
 final class WardrobeItem {
-    var id: UUID
-    var name: String
-    var category: String
-    var colorName: String
-    var season: String
-    var imageSymbol: String
+    var id: UUID = UUID()
+    var name: String = ""
+    var category: String = "上装"
+    var colorName: String = "未设置"
+    var season: String = "四季"
+    var imageSymbol: String = "tshirt.fill"
     @Attribute(.externalStorage) var imageData: Data?
     @Attribute(.externalStorage) var thumbnailData: Data?
-    var styleTagsText: String
-    var notes: String
+    var imageFileName: String?
+    var thumbnailFileName: String?
+    var styleTagsText: String = ""
+    var notes: String = ""
     var brand: String?
     var size: String?
     var purchasePrice: Double?
     var purchaseDate: Date?
     var purchaseChannel: String?
     var careNotes: String?
-    var isFavorite: Bool
-    var createdAt: Date
+    var isFavorite: Bool = false
+    var importBatchID: UUID?
+    var createdAt: Date = Date.now
     var updatedAt: Date?
+    @Relationship(inverse: \OOTDOutfit.topItem) var topOutfits: [OOTDOutfit]?
+    @Relationship(inverse: \OOTDOutfit.bottomItem) var bottomOutfits: [OOTDOutfit]?
+    @Relationship(inverse: \OOTDOutfit.outerwearItem) var outerwearOutfits: [OOTDOutfit]?
+    @Relationship(inverse: \OOTDOutfit.shoesItem) var shoesOutfits: [OOTDOutfit]?
+    @Relationship(inverse: \OOTDOutfit.bagItem) var bagOutfits: [OOTDOutfit]?
+    @Relationship(inverse: \OOTDOutfit.accessoryItem) var accessoryOutfits: [OOTDOutfit]?
 
     init(
         id: UUID = UUID(),
@@ -33,6 +42,8 @@ final class WardrobeItem {
         imageSymbol: String,
         imageData: Data? = nil,
         thumbnailData: Data? = nil,
+        imageFileName: String? = nil,
+        thumbnailFileName: String? = nil,
         styleTagsText: String = "",
         notes: String = "",
         brand: String = "",
@@ -42,6 +53,7 @@ final class WardrobeItem {
         purchaseChannel: String = "",
         careNotes: String = "",
         isFavorite: Bool = false,
+        importBatchID: UUID? = nil,
         createdAt: Date = .now,
         updatedAt: Date? = nil
     ) {
@@ -53,6 +65,8 @@ final class WardrobeItem {
         self.imageSymbol = imageSymbol
         self.imageData = imageData
         self.thumbnailData = thumbnailData ?? imageData.flatMap { ImageDataOptimizer.thumbnailJPEGData(from: $0) }
+        self.imageFileName = imageFileName
+        self.thumbnailFileName = thumbnailFileName
         self.styleTagsText = styleTagsText
         self.notes = notes
         self.brand = Self.optionalTrimmed(brand)
@@ -62,6 +76,7 @@ final class WardrobeItem {
         self.purchaseChannel = Self.optionalTrimmed(purchaseChannel)
         self.careNotes = Self.optionalTrimmed(careNotes)
         self.isFavorite = isFavorite
+        self.importBatchID = importBatchID
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
     }
@@ -74,15 +89,15 @@ final class WardrobeItem {
 
 @Model
 final class OutfitPlan {
-    var id: UUID
-    var date: Date
-    var title: String
-    var occasion: String
-    var notes: String
-    var outfitSummary: String
-    var reminderEnabled: Bool
+    var id: UUID = UUID()
+    var date: Date = Date.now
+    var title: String = ""
+    var occasion: String = ""
+    var notes: String = ""
+    var outfitSummary: String = ""
+    var reminderEnabled: Bool = false
     var reminderDate: Date?
-    var createdAt: Date
+    var createdAt: Date = Date.now
     var updatedAt: Date?
     var linkedOutfit: OOTDOutfit?
 
@@ -115,12 +130,19 @@ final class OutfitPlan {
 
 @Model
 final class OOTDOutfit {
-    var id: UUID
-    var title: String
-    var notes: String
-    var createdAt: Date
+    var id: UUID = UUID()
+    var title: String = ""
+    var notes: String = ""
+    var createdAt: Date = Date.now
     var updatedAt: Date?
-    var isToday: Bool
+    var isToday: Bool = false
+    var sourceKind: String = OOTDSourceKind.manual.rawValue
+    var aiPrompt: String?
+    var aiRecommendationReason: String?
+    var aiWeatherSummary: String?
+    var aiGeneratedAt: Date?
+    var aiModelIdentifier: String?
+    @Relationship(inverse: \OutfitPlan.linkedOutfit) var linkedPlans: [OutfitPlan]?
     var topItem: WardrobeItem?
     var bottomItem: WardrobeItem?
     var outerwearItem: WardrobeItem?
@@ -135,6 +157,12 @@ final class OOTDOutfit {
         createdAt: Date = .now,
         updatedAt: Date? = nil,
         isToday: Bool = false,
+        sourceKind: String = OOTDSourceKind.manual.rawValue,
+        aiPrompt: String? = nil,
+        aiRecommendationReason: String? = nil,
+        aiWeatherSummary: String? = nil,
+        aiGeneratedAt: Date? = nil,
+        aiModelIdentifier: String? = nil,
         topItem: WardrobeItem? = nil,
         bottomItem: WardrobeItem? = nil,
         outerwearItem: WardrobeItem? = nil,
@@ -148,6 +176,12 @@ final class OOTDOutfit {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.isToday = isToday
+        self.sourceKind = OOTDSourceKind.normalized(sourceKind).rawValue
+        self.aiPrompt = OOTDSourceKind.optionalTrimmed(aiPrompt)
+        self.aiRecommendationReason = OOTDSourceKind.optionalTrimmed(aiRecommendationReason)
+        self.aiWeatherSummary = OOTDSourceKind.optionalTrimmed(aiWeatherSummary)
+        self.aiGeneratedAt = aiGeneratedAt
+        self.aiModelIdentifier = OOTDSourceKind.optionalTrimmed(aiModelIdentifier)
         self.topItem = topItem
         self.bottomItem = bottomItem
         self.outerwearItem = outerwearItem
@@ -157,172 +191,33 @@ final class OOTDOutfit {
     }
 }
 
-enum WardrobeMockData {
-    static let items: [WardrobeItem] = [
-        WardrobeItem(name: "奶油白衬衫", category: "上装", colorName: "奶油白", season: "四季", imageSymbol: "shirt.fill", styleTagsText: "通勤, 极简", brand: "基础衣橱", size: "M", purchasePrice: 199, purchaseDate: Date(timeIntervalSince1970: 1_735_689_600), purchaseChannel: "线下门店", careNotes: "低温熨烫，浅色单独洗"),
-        WardrobeItem(name: "雾蓝针织开衫", category: "外套", colorName: "雾蓝", season: "春秋", imageSymbol: "sparkles", styleTagsText: "层次, 温柔", brand: "Soft Knit", size: "M", purchasePrice: 269, purchaseDate: Date(timeIntervalSince1970: 1_741_132_800), purchaseChannel: "线上商城", careNotes: "平铺晾干，避免悬挂变形"),
-        WardrobeItem(name: "炭灰西装裤", category: "下装", colorName: "炭灰", season: "四季", imageSymbol: "figure.walk", styleTagsText: "通勤, 正式", brand: "Daily Tailor", size: "28", purchasePrice: 329, purchaseDate: Date(timeIntervalSince1970: 1_738_368_000), purchaseChannel: "线下门店"),
-        WardrobeItem(name: "黑色百褶裙", category: "裙装", colorName: "曜石黑", season: "春秋", imageSymbol: "sun.max.trianglebadge.exclamationmark", styleTagsText: "轻甜, 休闲", brand: "Weekend", size: "S", purchasePrice: 189, purchaseDate: Date(timeIntervalSince1970: 1_744_070_400), purchaseChannel: "线上商城"),
-        WardrobeItem(name: "白色运动鞋", category: "鞋履", colorName: "暖白", season: "四季", imageSymbol: "shoe.2.fill", styleTagsText: "舒适, 休闲", brand: "Walk Lab", size: "38", purchasePrice: 399, purchaseDate: Date(timeIntervalSince1970: 1_732_924_800), purchaseChannel: "品牌官网", careNotes: "鞋面污渍及时擦拭"),
-        WardrobeItem(name: "焦糖托特包", category: "包袋", colorName: "焦糖棕", season: "四季", imageSymbol: "bag.fill", styleTagsText: "通勤, 实用", brand: "Carry Daily", size: "中号", purchasePrice: 459, purchaseDate: Date(timeIntervalSince1970: 1_727_740_800), purchaseChannel: "线下门店"),
-        WardrobeItem(name: "珍珠耳饰", category: "配饰", colorName: "珠光白", season: "四季", imageSymbol: "circle.hexagongrid.fill", styleTagsText: "精致, 轻甜", brand: "Tiny Shine", size: "均码", purchasePrice: 99, purchaseDate: Date(timeIntervalSince1970: 1_746_662_400), purchaseChannel: "线上商城"),
-        WardrobeItem(name: "海军蓝棒球帽", category: "帽子", colorName: "海军蓝", season: "春夏", imageSymbol: "cap.fill", styleTagsText: "休闲, 运动", brand: "Sun Day", size: "均码", purchasePrice: 129, purchaseDate: Date(timeIntervalSince1970: 1_749_340_800), purchaseChannel: "品牌官网")
-    ]
+enum OOTDSourceKind: String, CaseIterable {
+    case manual
+    case recommendation
+    case ai
 
-    static let plans: [OutfitPlanSeed] = [
-        OutfitPlanSeed(
-            date: Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now,
-            title: "周二通勤",
-            occasion: "办公室",
-            notes: "开会前直接查看这套通勤搭配。",
-            outfitSummary: "奶油白衬衫 + 炭灰西装裤 + 雾蓝针织开衫",
-            reminderEnabled: true,
-            reminderDate: Calendar.current.date(bySettingHour: 8, minute: 20, second: 0, of: Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now),
-            linkedOutfitTitle: "今日通勤搭配"
-        ),
-        OutfitPlanSeed(
-            date: Calendar.current.date(byAdding: .day, value: 2, to: .now) ?? .now,
-            title: "周三咖啡会面",
-            occasion: "轻社交",
-            notes: "轻松一点，但保持干净利落。",
-            outfitSummary: "黑色百褶裙 + 白色运动鞋 + 焦糖托特包",
-            reminderEnabled: true,
-            reminderDate: Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Calendar.current.date(byAdding: .day, value: 2, to: .now) ?? .now),
-            linkedOutfitTitle: "周末咖啡搭配"
-        ),
-        OutfitPlanSeed(
-            date: Calendar.current.date(byAdding: .day, value: 4, to: .now) ?? .now,
-            title: "周五休闲日",
-            occasion: "放松",
-            notes: "留给轻松场景，不开提醒。",
-            outfitSummary: "奶油白衬衫 + 白色运动鞋 + 海军蓝棒球帽",
-            reminderEnabled: false,
-            reminderDate: nil,
-            linkedOutfitTitle: nil
-        )
-    ]
-
-    static let outfits: [OOTDOutfitSeed] = [
-        OOTDOutfitSeed(
-            title: "今日通勤搭配",
-            notes: "低饱和配色，适合工作日直接出门。",
-            isToday: true,
-            topName: "奶油白衬衫",
-            bottomName: "炭灰西装裤",
-            outerwearName: "雾蓝针织开衫",
-            shoesName: "白色运动鞋",
-            bagName: "焦糖托特包",
-            accessoryName: "珍珠耳饰"
-        ),
-        OOTDOutfitSeed(
-            title: "周末咖啡搭配",
-            notes: "用裙装和帽子做一点轻松感。",
-            isToday: false,
-            topName: "奶油白衬衫",
-            bottomName: "黑色百褶裙",
-            outerwearName: nil,
-            shoesName: "白色运动鞋",
-            bagName: "焦糖托特包",
-            accessoryName: "海军蓝棒球帽"
-        )
-    ]
-}
-
-struct OOTDOutfitSeed {
-    let title: String
-    let notes: String
-    let isToday: Bool
-    let topName: String?
-    let bottomName: String?
-    let outerwearName: String?
-    let shoesName: String?
-    let bagName: String?
-    let accessoryName: String?
-}
-
-struct OutfitPlanSeed {
-    let date: Date
-    let title: String
-    let occasion: String
-    let notes: String
-    let outfitSummary: String
-    let reminderEnabled: Bool
-    let reminderDate: Date?
-    let linkedOutfitTitle: String?
-}
-
-enum WardrobePreviewContainer {
-    static let shared: ModelContainer = make()
-
-    static func make() -> ModelContainer {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-
-        do {
-            let container = try ModelContainer(
-                for: WardrobeItem.self,
-                OutfitPlan.self,
-                OOTDOutfit.self,
-                configurations: configuration
-            )
-
-            var insertedItems: [String: WardrobeItem] = [:]
-            for item in WardrobeMockData.items {
-                let inserted = WardrobeItem(
-                    name: item.name,
-                    category: item.category,
-                    colorName: item.colorName,
-                    season: item.season,
-                    imageSymbol: item.imageSymbol,
-                    styleTagsText: item.styleTagsText,
-                    notes: item.notes,
-                    brand: item.trimmedBrand ?? "",
-                    size: item.trimmedSize ?? "",
-                    purchasePrice: item.purchasePrice,
-                    purchaseDate: item.purchaseDate,
-                    purchaseChannel: item.trimmedPurchaseChannel ?? "",
-                    careNotes: item.trimmedCareNotes ?? "",
-                    isFavorite: item.isFavorite
-                )
-                container.mainContext.insert(inserted)
-                insertedItems[item.name] = inserted
-            }
-
-            var insertedOutfits: [String: OOTDOutfit] = [:]
-            for outfit in WardrobeMockData.outfits {
-                let insertedOutfit = OOTDOutfit(
-                    title: outfit.title,
-                    notes: outfit.notes,
-                    isToday: outfit.isToday,
-                    topItem: outfit.topName.flatMap { insertedItems[$0] },
-                    bottomItem: outfit.bottomName.flatMap { insertedItems[$0] },
-                    outerwearItem: outfit.outerwearName.flatMap { insertedItems[$0] },
-                    shoesItem: outfit.shoesName.flatMap { insertedItems[$0] },
-                    bagItem: outfit.bagName.flatMap { insertedItems[$0] },
-                    accessoryItem: outfit.accessoryName.flatMap { insertedItems[$0] }
-                )
-                container.mainContext.insert(insertedOutfit)
-                insertedOutfits[outfit.title] = insertedOutfit
-            }
-
-            for plan in WardrobeMockData.plans {
-                container.mainContext.insert(
-                    OutfitPlan(
-                        date: plan.date,
-                        title: plan.title,
-                        occasion: plan.occasion,
-                        notes: plan.notes,
-                        outfitSummary: plan.outfitSummary,
-                        reminderEnabled: plan.reminderEnabled,
-                        reminderDate: plan.reminderDate,
-                        linkedOutfit: plan.linkedOutfitTitle.flatMap { insertedOutfits[$0] }
-                    )
-                )
-            }
-
-            return container
-        } catch {
-            fatalError("Failed to create preview container: \(error)")
+    var displayTitle: String {
+        switch self {
+        case .manual:
+            return "手动创建"
+        case .recommendation:
+            return "轻量推荐"
+        case .ai:
+            return "AI 搭配师"
         }
+    }
+
+    static func normalized(_ rawValue: String?) -> OOTDSourceKind {
+        guard let rawValue,
+              let sourceKind = OOTDSourceKind(rawValue: rawValue) else {
+            return .manual
+        }
+        return sourceKind
+    }
+
+    static func optionalTrimmed(_ text: String?) -> String? {
+        let trimmed = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -387,11 +282,43 @@ extension WardrobeItem {
     }
 
     var needsDetailCompletion: Bool {
-        imageData == nil || styleTags.isEmpty || trimmedBrand == nil || trimmedSize == nil
+        !hasPhoto || styleTags.isEmpty || trimmedBrand == nil || trimmedSize == nil
+    }
+
+    var hasPhoto: Bool {
+        imageFileName != nil || thumbnailFileName != nil || imageData != nil || thumbnailData != nil
     }
 
     var preferredThumbnailData: Data? {
-        thumbnailData ?? imageData
+        WardrobeImageFileStore.shared.data(for: thumbnailFileName) ?? thumbnailData
+    }
+
+    var displayImageData: Data? {
+        WardrobeImageFileStore.shared.data(for: imageFileName) ?? imageData ?? preferredThumbnailData
+    }
+
+    var storedImageByteCount: Int {
+        if let fileByteCount = WardrobeImageFileStore.shared.byteCount(for: imageFileName) {
+            return fileByteCount
+        }
+        if let fileByteCount = WardrobeImageFileStore.shared.byteCount(for: thumbnailFileName) {
+            return fileByteCount
+        }
+        return imageData?.count ?? 0
+    }
+
+    var storedImageFiles: WardrobeStoredImageFiles? {
+        guard let imageFileName, let thumbnailFileName else { return nil }
+        return WardrobeStoredImageFiles(imageFileName: imageFileName, thumbnailFileName: thumbnailFileName)
+    }
+
+    func applyStoredImageFiles(_ files: WardrobeStoredImageFiles, clearInlineData: Bool) {
+        imageFileName = files.imageFileName
+        thumbnailFileName = files.thumbnailFileName
+        if clearInlineData {
+            imageData = nil
+            thumbnailData = nil
+        }
     }
 
     var searchableFields: [String] {
@@ -423,6 +350,18 @@ extension WardrobeItem {
 extension OOTDOutfit {
     var lastModifiedAt: Date {
         updatedAt ?? createdAt
+    }
+
+    var source: OOTDSourceKind {
+        OOTDSourceKind.normalized(sourceKind)
+    }
+
+    var wasGeneratedByAI: Bool {
+        source == .ai
+    }
+
+    var sourceDisplayTitle: String {
+        source.displayTitle
     }
 
     var orderedItems: [WardrobeItem] {

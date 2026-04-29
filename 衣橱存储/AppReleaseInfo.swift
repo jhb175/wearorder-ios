@@ -17,6 +17,14 @@ enum AppReleaseInfo {
         #endif
     }
 
+    static var allowsAIStylistEntry: Bool {
+        #if INTERNAL_TOOLS
+        true
+        #else
+        false
+        #endif
+    }
+
     static var privacyPolicyURL: URL? {
         makePublicHTTPSURL(privacyPolicyURLString)
     }
