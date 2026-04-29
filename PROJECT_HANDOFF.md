@@ -26,7 +26,7 @@ open 衣橱存储.xcodeproj
 
 4. 新 Codex 会话可以直接说：
 
-> 读取 `PROJECT_HANDOFF.md`、`RELEASE_CHECKLIST.md` 和当前 `git status`，继续开发衣序。
+> 读取 `PROJECT_HANDOFF.md`、`DEVELOPMENT_ROADMAP.md`、`RELEASE_CHECKLIST.md` 和当前 `git status`，继续开发衣序。
 
 ## 当前产品状态
 
@@ -37,6 +37,7 @@ open 衣橱存储.xcodeproj
 - 账号层：Sign in with Apple 已接入，主要用于后续账号体系和同步体验。
 - 图片层：已从直接落库原图升级为本地图片文件存储、缩略图、压缩处理和白底图入口。
 - 备份层：支持本地 JSON 导出/恢复，恢复流程需要继续保持事务安全。
+- 后续开发计划、新功能和接口草案记录在 `DEVELOPMENT_ROADMAP.md`。
 
 ## 最近完成的关键修复
 
