@@ -64,6 +64,15 @@ final class WeatherForecastServiceTests: XCTestCase {
         )
     }
 
+    func testCityLookupClassifierMapsNetworkFailureToNetworkUnavailable() {
+        let error = NSError(domain: kCLErrorDomain, code: CLError.Code.network.rawValue)
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.cityLookupError(from: error, cityName: "测试城市"),
+            .networkUnavailable
+        )
+    }
+
     func testCityLookupClassifierDoesNotTreatUnknownFailuresAsCityNotFound() {
         let error = NSError(domain: "WeatherCityResolverTests", code: 1)
 

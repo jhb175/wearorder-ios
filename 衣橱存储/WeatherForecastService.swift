@@ -162,7 +162,9 @@ enum WeatherForecastErrorClassifier {
         switch coreLocationCode(from: error) {
         case .some(.geocodeFoundNoResult), .some(.geocodeFoundPartialResult):
             return .cityNotFound(cityName)
-        case .some(.network), .some(.geocodeCanceled), .some:
+        case .some(.network):
+            return .networkUnavailable
+        case .some(.geocodeCanceled), .some:
             return .cityLookupUnavailable(cityName)
         case .none:
             return .cityLookupUnavailable(cityName)
