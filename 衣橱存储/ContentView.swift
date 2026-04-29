@@ -1624,7 +1624,7 @@ private struct WeatherCityPickerView: View {
         self.onSave = onSave
         self.onUseCurrentLocation = onUseCurrentLocation
         let initialCity = savedCity.trimmingCharacters(in: .whitespacesAndNewlines)
-        _cityName = State(initialValue: initialCity.isEmpty ? "上海" : initialCity)
+        _cityName = State(initialValue: initialCity)
     }
 
     var body: some View {
@@ -1635,7 +1635,7 @@ private struct WeatherCityPickerView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
-                    Text("选择城市只是选择天气预报地点，不会让你手动改天气或温度。")
+                    Text("可输入上海、Tokyo、New York、Paris 等全球城市。选择城市只是选择天气预报地点，不会让你手动改天气或温度。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

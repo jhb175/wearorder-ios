@@ -278,11 +278,14 @@ enum WeatherCityFallbackDirectory {
         guard !normalizedInput.isEmpty else { return nil }
 
         return cities.first { city in
-            city.aliases
-                .map(normalized)
-                .contains { alias in
-                    normalizedInput == alias || normalizedInput.contains(alias)
-                }
+            let normalizedAliases = city.aliases.map(normalized)
+            if normalizedAliases.contains(normalizedInput) {
+                return true
+            }
+
+            return normalizedAliases.contains { alias in
+                containsCJKCharacters(alias) && normalizedInput.hasPrefix(alias)
+            }
         }
     }
 
@@ -295,6 +298,12 @@ enum WeatherCityFallbackDirectory {
             .components(separatedBy: .whitespacesAndNewlines)
             .joined()
             .lowercased()
+    }
+
+    private nonisolated static func containsCJKCharacters(_ value: String) -> Bool {
+        value.unicodeScalars.contains { scalar in
+            (0x4E00...0x9FFF).contains(Int(scalar.value))
+        }
     }
 
     private nonisolated static let cities: [City] = [
@@ -343,8 +352,29 @@ enum WeatherCityFallbackDirectory {
         City(displayName: "首尔", aliases: ["首尔", "Seoul"], latitude: 37.5665, longitude: 126.9780),
         City(displayName: "新加坡", aliases: ["新加坡", "Singapore"], latitude: 1.3521, longitude: 103.8198),
         City(displayName: "纽约", aliases: ["纽约", "New York", "NYC"], latitude: 40.7128, longitude: -74.0060),
+        City(displayName: "洛杉矶", aliases: ["洛杉矶", "Los Angeles", "LA"], latitude: 34.0522, longitude: -118.2437),
+        City(displayName: "旧金山", aliases: ["旧金山", "San Francisco", "SF"], latitude: 37.7749, longitude: -122.4194),
+        City(displayName: "多伦多", aliases: ["多伦多", "Toronto"], latitude: 43.6532, longitude: -79.3832),
+        City(displayName: "温哥华", aliases: ["温哥华", "Vancouver"], latitude: 49.2827, longitude: -123.1207),
         City(displayName: "伦敦", aliases: ["伦敦", "London"], latitude: 51.5072, longitude: -0.1276),
-        City(displayName: "巴黎", aliases: ["巴黎", "Paris"], latitude: 48.8566, longitude: 2.3522)
+        City(displayName: "巴黎", aliases: ["巴黎", "Paris"], latitude: 48.8566, longitude: 2.3522),
+        City(displayName: "柏林", aliases: ["柏林", "Berlin"], latitude: 52.5200, longitude: 13.4050),
+        City(displayName: "罗马", aliases: ["罗马", "Rome"], latitude: 41.9028, longitude: 12.4964),
+        City(displayName: "马德里", aliases: ["马德里", "Madrid"], latitude: 40.4168, longitude: -3.7038),
+        City(displayName: "阿姆斯特丹", aliases: ["阿姆斯特丹", "Amsterdam"], latitude: 52.3676, longitude: 4.9041),
+        City(displayName: "迪拜", aliases: ["迪拜", "Dubai"], latitude: 25.2048, longitude: 55.2708),
+        City(displayName: "曼谷", aliases: ["曼谷", "Bangkok"], latitude: 13.7563, longitude: 100.5018),
+        City(displayName: "吉隆坡", aliases: ["吉隆坡", "Kuala Lumpur"], latitude: 3.1390, longitude: 101.6869),
+        City(displayName: "雅加达", aliases: ["雅加达", "Jakarta"], latitude: -6.2088, longitude: 106.8456),
+        City(displayName: "马尼拉", aliases: ["马尼拉", "Manila"], latitude: 14.5995, longitude: 120.9842),
+        City(displayName: "悉尼", aliases: ["悉尼", "Sydney"], latitude: -33.8688, longitude: 151.2093),
+        City(displayName: "墨尔本", aliases: ["墨尔本", "Melbourne"], latitude: -37.8136, longitude: 144.9631),
+        City(displayName: "德里", aliases: ["德里", "Delhi", "New Delhi"], latitude: 28.6139, longitude: 77.2090),
+        City(displayName: "孟买", aliases: ["孟买", "Mumbai"], latitude: 19.0760, longitude: 72.8777),
+        City(displayName: "伊斯坦布尔", aliases: ["伊斯坦布尔", "Istanbul"], latitude: 41.0082, longitude: 28.9784),
+        City(displayName: "圣保罗", aliases: ["圣保罗", "Sao Paulo", "São Paulo"], latitude: -23.5558, longitude: -46.6396),
+        City(displayName: "墨西哥城", aliases: ["墨西哥城", "Mexico City"], latitude: 19.4326, longitude: -99.1332),
+        City(displayName: "开罗", aliases: ["开罗", "Cairo"], latitude: 30.0444, longitude: 31.2357)
     ]
 }
 

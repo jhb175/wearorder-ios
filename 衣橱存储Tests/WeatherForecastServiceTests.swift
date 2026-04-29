@@ -17,6 +17,22 @@ final class WeatherForecastServiceTests: XCTestCase {
         XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "深圳 南山区")?.displayName, "深圳")
     }
 
+    func testGlobalCityFallbackDirectoryCoversMajorMarkets() {
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "New York")?.displayName, "纽约")
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "Los Angeles")?.displayName, "洛杉矶")
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "London")?.displayName, "伦敦")
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "Paris")?.displayName, "巴黎")
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "Tokyo")?.displayName, "东京")
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "Seoul")?.displayName, "首尔")
+        XCTAssertEqual(WeatherCityFallbackDirectory.city(matching: "São Paulo")?.displayName, "圣保罗")
+    }
+
+    func testLatinFallbackCitiesDoNotStealAmbiguousRegionalQueries() {
+        XCTAssertNil(WeatherCityFallbackDirectory.city(matching: "Paris Texas"))
+        XCTAssertNil(WeatherCityFallbackDirectory.city(matching: "London Ontario"))
+        XCTAssertNil(WeatherCityFallbackDirectory.city(matching: "San Francisco District"))
+    }
+
     func testUnknownCityFallsThroughToSystemGeocoder() {
         XCTAssertNil(WeatherCityFallbackDirectory.city(matching: "一个不存在的城市名称"))
     }
