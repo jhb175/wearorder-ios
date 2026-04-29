@@ -113,7 +113,7 @@ xcodebuild test \
 
 ## 2026-04-29 换机打包记录
 
-- 当前准备给 TestFlight 继续测试的版本是 `1.0.0 (5)`。
+- 当前准备给 TestFlight 继续测试的版本是 `1.0.0 (7)`。
 - 最新提交：
   - `f8238ee Bump build number to 5`
   - `03ad549 Document TestFlight weather handoff`
@@ -121,7 +121,8 @@ xcodebuild test \
   - `7e23360 Improve global weather city resolution`
 - 已确认 Xcode build settings：
   - `MARKETING_VERSION = 1.0.0`
-  - `CURRENT_PROJECT_VERSION = 5`
+  - `CURRENT_PROJECT_VERSION = 7`
+  - `Release CODE_SIGN_IDENTITY = Apple Distribution`
 - 当前仓库已推送到 GitHub：`https://github.com/jhb175/wearorder-ios`
 - 新 Mac 接手步骤：
 
@@ -143,8 +144,9 @@ git status
   - Team 选择付费 Apple Developer Program 团队。
   - Bundle Identifier 是 `com.ramsey.wearorder`。
   - Signing & Capabilities 中有 `Sign in with Apple`、`WeatherKit`。
-  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (6)`。
-- 如果 WeatherKit 真机仍提示不可用，先重新生成/刷新 provisioning profile，再 Archive 新 build；旧 TestFlight 包不会自动获得新 entitlement。
+  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (8)`。
+- WeatherKit 第 6 版失败的根因：App ID 后台已经开启 WeatherKit，归档包也包含 `com.apple.developer.weatherkit`，但 Release 构建设置仍解析为 `Apple Development`。第 7 版已把 Release 签名身份固定为 `Apple Distribution`，需要重新 Archive 并上传 TestFlight。
+- 如果 WeatherKit 真机仍提示不可用，先确认安装的是 `1.0.0 (7)` 或更新版本，并在 Organizer 上传后重新安装 TestFlight 包；旧 TestFlight 包不会自动获得新签名能力。
 
 ## 下一步优先级
 
