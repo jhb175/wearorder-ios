@@ -9,64 +9,16 @@ struct WardrobeOnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                TabView(selection: $selectedPage) {
-                    ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                        onboardingPage(page)
-                            .tag(index)
-                            .padding(.horizontal, 24)
-                    }
+            TabView(selection: $selectedPage) {
+                ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
+                    onboardingPage(page)
+                        .tag(index)
+                        .padding(.horizontal, 24)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-
-                VStack(spacing: 14) {
-                    pageIndicator
-
-                    Button {
-                        if selectedPage < pages.count - 1 {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                                selectedPage += 1
-                            }
-                        } else {
-                            onAction(.addClothing)
-                        }
-                    } label: {
-                        Label(primaryActionTitle, systemImage: primaryActionSymbol)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(HomePressableButtonStyle())
-                    .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.22))
-
-                    HStack(spacing: 10) {
-                        if canLoadSampleData && AppReleaseInfo.allowsSampleDataEntry {
-                            Button {
-                                onAction(.loadSampleData)
-                            } label: {
-                                Label("载入示例", systemImage: "sparkles")
-                                    .font(.caption.weight(.semibold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 11)
-                            }
-                            .buttonStyle(HomePressableButtonStyle())
-                            .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                        }
-
-                        Button {
-                            onAction(.dismiss)
-                        } label: {
-                            Text("稍后")
-                                .font(.caption.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .safeAreaInset(edge: .bottom) {
+                actionPanel
             }
             .background(onboardingBackground)
             .navigationTitle("开始使用")
@@ -91,6 +43,62 @@ struct WardrobeOnboardingView: View {
                 }
             }
         }
+    }
+
+    private var actionPanel: some View {
+        VStack(spacing: 14) {
+            pageIndicator
+
+            Button {
+                if selectedPage < pages.count - 1 {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        selectedPage += 1
+                    }
+                } else {
+                    onAction(.addClothing)
+                }
+            } label: {
+                Label(primaryActionTitle, systemImage: primaryActionSymbol)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(HomePressableButtonStyle())
+            .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.22))
+
+            HStack(spacing: 10) {
+                if canLoadSampleData && AppReleaseInfo.allowsSampleDataEntry {
+                    Button {
+                        onAction(.loadSampleData)
+                    } label: {
+                        Label("载入示例", systemImage: "sparkles")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                }
+
+                Button {
+                    onAction(.dismiss)
+                } label: {
+                    Text("稍后")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(HomePressableButtonStyle())
+                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 14)
+        .padding(.bottom, 18)
+        .background(.ultraThinMaterial)
     }
 
     private var primaryActionTitle: String {

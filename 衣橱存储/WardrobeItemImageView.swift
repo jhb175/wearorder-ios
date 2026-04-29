@@ -197,7 +197,7 @@ private final class WardrobeImageCache {
     }
 }
 
-private enum WardrobeImageDecoder {
+enum WardrobeImageDecoder {
     nonisolated static func decodeCGImage(from data: Data, maxPixelSize: CGFloat) -> CGImage? {
         #if canImport(UIKit) || canImport(AppKit)
         let options: [CFString: Any] = [

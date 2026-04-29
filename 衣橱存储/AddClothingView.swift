@@ -18,6 +18,7 @@ struct AddClothingView: View {
     @State private var draft = ClothingDraft()
     @State private var showsSaveError = false
     @State private var saveErrorMessage = ""
+    @State private var isSavingClothing = false
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,7 @@ struct AddClothingView: View {
                 draft: $draft,
                 showsSaveSection: true,
                 saveButtonTitle: "保存衣物",
+                isSaveInProgress: isSavingClothing,
                 onSave: saveClothing
             )
             .navigationTitle("添加衣物")
@@ -43,42 +45,63 @@ struct AddClothingView: View {
     }
 
     private func saveClothing() {
-        let newItem = WardrobeItem(
-            name: draft.trimmedName,
-            category: draft.category,
-            colorName: draft.colorName,
-            season: draft.season,
-            imageSymbol: draft.imageSymbol,
-            imageData: draft.imageData,
-            thumbnailData: draft.thumbnailData,
-            styleTagsText: draft.styleTagsText,
-            notes: draft.notes,
-            brand: draft.brand,
-            size: draft.size,
-            purchasePrice: draft.normalizedPurchasePrice,
-            purchaseDate: draft.hasPurchaseDate ? draft.purchaseDate : nil,
-            purchaseChannel: draft.purchaseChannel,
-            careNotes: draft.careNotes
-        )
+        guard !isSavingClothing else { return }
+        let draftSnapshot = draft
+        isSavingClothing = true
+        Task {
+            await saveClothing(draftSnapshot)
+        }
+    }
 
-        var didInsert = false
+    private func saveClothing(_ draft: ClothingDraft) async {
+        let itemID = UUID()
+        var storedFiles: WardrobeStoredImageFiles?
+        defer { isSavingClothing = false }
+
         do {
-            try newItem.persistInlineImageDataToFiles()
+            storedFiles = try await Task.detached(priority: .userInitiated) {
+                try WardrobeImageStoragePreparer.storeImageFilesIfNeeded(
+                    itemID: itemID,
+                    imageData: draft.imageData,
+                    thumbnailData: draft.thumbnailData
+                )
+            }.value
+
+            let newItem = WardrobeItem(
+                id: itemID,
+                name: draft.trimmedName,
+                category: draft.category,
+                colorName: draft.colorName,
+                season: draft.season,
+                imageSymbol: draft.imageSymbol,
+                imageFileName: storedFiles?.imageFileName,
+                thumbnailFileName: storedFiles?.thumbnailFileName,
+                styleTagsText: draft.styleTagsText,
+                notes: draft.notes,
+                brand: draft.brand,
+                size: draft.size,
+                purchasePrice: draft.normalizedPurchasePrice,
+                purchaseDate: draft.hasPurchaseDate ? draft.purchaseDate : nil,
+                purchaseChannel: draft.purchaseChannel,
+                careNotes: draft.careNotes
+            )
+
             modelContext.insert(newItem)
-            didInsert = true
             try modelContext.save()
             AppHaptics.success()
             onSaved?(newItem)
             dismiss()
         } catch {
-            if didInsert {
-                modelContext.delete(newItem)
+            if let storedFiles {
+                WardrobeImageFileStore.shared.remove(fileName: storedFiles.imageFileName)
+                WardrobeImageFileStore.shared.remove(fileName: storedFiles.thumbnailFileName)
             }
-            newItem.clearImageStorage(removeFiles: true)
+            modelContext.rollback()
             saveErrorMessage = error.localizedDescription
             showsSaveError = true
         }
     }
+
 }
 
 enum BatchClothingImportMode: String, Identifiable {
@@ -106,8 +129,8 @@ enum BatchClothingImportMode: String, Identifiable {
     }
 }
 
-private struct BatchClothingImportDraft: Identifiable {
-    let id = UUID()
+private struct BatchClothingImportDraft: Identifiable, Sendable {
+    let id: UUID = UUID()
     var name: String
     var category: String
     var colorName: String
@@ -116,6 +139,12 @@ private struct BatchClothingImportDraft: Identifiable {
     var imageData: Data
     var thumbnailData: Data
     var sourceLabel: String
+}
+
+private struct PreparedBatchClothingImport: Sendable {
+    let itemID: UUID
+    let draft: BatchClothingImportDraft
+    let storedFiles: WardrobeStoredImageFiles?
 }
 
 struct BatchClothingImportView: View {
@@ -160,7 +189,9 @@ struct BatchClothingImportView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        saveDrafts()
+                        Task {
+                            await saveDrafts()
+                        }
                     }
                     .disabled(drafts.isEmpty || isProcessing || isSaving)
                 }
@@ -388,6 +419,7 @@ struct BatchClothingImportView: View {
         var importedCount = 0
         var failedCount = 0
 
+        var newDrafts: [BatchClothingImportDraft] = []
         for (offset, photoItem) in photoItems.enumerated() {
             statusMessage = "正在处理第 \(offset + 1)/\(photoItems.count) 张照片。"
             do {
@@ -395,12 +427,16 @@ struct BatchClothingImportView: View {
                     failedCount += 1
                     continue
                 }
-                let draft = await makeDraft(from: imageData, sourceLabel: "相册第 \(startingIndex + importedCount + 1) 张")
-                drafts.append(draft)
+                let draft = await makeDraft(from: imageData, sourceLabel: "相册第 \(startingIndex + importedCount + 1) 张", displayIndex: startingIndex + importedCount + 1)
+                newDrafts.append(draft)
                 importedCount += 1
             } catch {
                 failedCount += 1
             }
+        }
+
+        if !newDrafts.isEmpty {
+            drafts.append(contentsOf: newDrafts)
         }
 
         isProcessing = false
@@ -416,22 +452,21 @@ struct BatchClothingImportView: View {
         isProcessing = true
         failureMessage = nil
         statusMessage = "正在处理刚拍摄的照片。"
-        let draft = await makeDraft(from: imageData, sourceLabel: "拍照第 \(drafts.count + 1) 张")
+        let draft = await makeDraft(from: imageData, sourceLabel: "拍照第 \(drafts.count + 1) 张", displayIndex: drafts.count + 1)
         drafts.append(draft)
         isProcessing = false
         statusMessage = "已加入 1 件待保存衣物，可以继续拍照。"
     }
 
-    private func makeDraft(from imageData: Data, sourceLabel: String) async -> BatchClothingImportDraft {
+    private func makeDraft(from imageData: Data, sourceLabel: String, displayIndex: Int) async -> BatchClothingImportDraft {
         let processed = await Task.detached(priority: .userInitiated) {
             ClothingImageImportProcessor.process(imageData)
         }.value
         let category = processed.categorySuggestion?.category ?? .other
         let colorName = processed.colorSuggestion?.colorName ?? "奶油白"
-        let nextIndex = drafts.count + 1
 
         return BatchClothingImportDraft(
-            name: "\(category.rawValue) \(nextIndex)",
+            name: "\(category.rawValue) \(displayIndex)",
             category: category.rawValue,
             colorName: colorName,
             season: ClothingSeason.all.rawValue,
@@ -442,7 +477,8 @@ struct BatchClothingImportView: View {
         )
     }
 
-    private func saveDrafts() {
+    private func saveDrafts() async {
+        guard !isSaving else { return }
         let validDrafts = drafts.map { draft in
             var copy = draft
             let trimmedName = copy.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -458,15 +494,37 @@ struct BatchClothingImportView: View {
         isSaving = true
         failureMessage = nil
         let importBatchID = UUID()
-        let insertedItems = validDrafts.map { draft in
-            WardrobeItem(
+        var preparedImports: [PreparedBatchClothingImport] = []
+
+        do {
+            preparedImports = try await Task.detached(priority: .userInitiated) {
+                try validDrafts.map { draft in
+                    let itemID = UUID()
+                    let storedFiles = try WardrobeImageStoragePreparer.storeImageFilesIfNeeded(
+                        itemID: itemID,
+                        imageData: draft.imageData,
+                        thumbnailData: draft.thumbnailData
+                    )
+                    return PreparedBatchClothingImport(itemID: itemID, draft: draft, storedFiles: storedFiles)
+                }
+            }.value
+        } catch {
+            isSaving = false
+            failureMessage = "批量保存失败：\(error.localizedDescription)"
+            return
+        }
+
+        let insertedItems: [WardrobeItem] = preparedImports.map { prepared in
+            let draft = prepared.draft
+            return WardrobeItem(
+                id: prepared.itemID,
                 name: draft.name,
                 category: draft.category,
                 colorName: draft.colorName,
                 season: draft.season,
                 imageSymbol: draft.imageSymbol,
-                imageData: draft.imageData,
-                thumbnailData: draft.thumbnailData,
+                imageFileName: prepared.storedFiles?.imageFileName,
+                thumbnailFileName: prepared.storedFiles?.thumbnailFileName,
                 importBatchID: importBatchID
             )
         }
@@ -474,7 +532,6 @@ struct BatchClothingImportView: View {
         var insertedCount = 0
         do {
             for item in insertedItems {
-                try item.persistInlineImageDataToFiles()
                 modelContext.insert(item)
                 insertedCount += 1
             }
@@ -487,9 +544,13 @@ struct BatchClothingImportView: View {
             for item in insertedItems.prefix(insertedCount) {
                 modelContext.delete(item)
             }
-            for item in insertedItems {
-                item.clearImageStorage(removeFiles: true)
+            for prepared in preparedImports {
+                if let storedFiles = prepared.storedFiles {
+                    WardrobeImageFileStore.shared.remove(fileName: storedFiles.imageFileName)
+                    WardrobeImageFileStore.shared.remove(fileName: storedFiles.thumbnailFileName)
+                }
             }
+            modelContext.rollback()
             isSaving = false
             failureMessage = "批量保存失败：\(error.localizedDescription)"
         }

@@ -135,7 +135,7 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showsFirstRunOnboarding) {
+        .sheet(isPresented: $showsFirstRunOnboarding, onDismiss: markFirstRunOnboardingDismissed) {
             WardrobeOnboardingView(
                 canLoadSampleData: canLoadSampleData,
                 onAction: handleOnboardingAction
@@ -974,6 +974,12 @@ struct ContentView: View {
             selectedTab = .settings
         case .dismiss:
             break
+        }
+    }
+
+    private func markFirstRunOnboardingDismissed() {
+        if !hasSeenOnboarding {
+            hasSeenOnboarding = true
         }
     }
 

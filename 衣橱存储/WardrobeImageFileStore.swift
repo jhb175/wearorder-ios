@@ -5,6 +5,24 @@ struct WardrobeStoredImageFiles: Sendable {
     let thumbnailFileName: String
 }
 
+enum WardrobeImageStoragePreparer {
+    nonisolated static func storeImageFilesIfNeeded(
+        itemID: UUID,
+        imageData: Data?,
+        thumbnailData: Data?
+    ) throws -> WardrobeStoredImageFiles? {
+        guard let imageData else { return nil }
+        let resolvedThumbnailData = thumbnailData
+            ?? ImageDataOptimizer.thumbnailJPEGData(from: imageData)
+            ?? imageData
+        return try WardrobeImageFileStore.shared.storeImageSet(
+            itemID: itemID,
+            imageData: imageData,
+            thumbnailData: resolvedThumbnailData
+        )
+    }
+}
+
 final class WardrobeImageFileStore: @unchecked Sendable {
     nonisolated static let shared = WardrobeImageFileStore()
 

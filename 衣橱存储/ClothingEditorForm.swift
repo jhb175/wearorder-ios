@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 #endif
 
-struct ClothingDraft {
+struct ClothingDraft: Sendable {
     var name: String = ""
     var category: String = WardrobeCategory.top.rawValue
     var colorName: String = "奶油白"
@@ -110,6 +110,11 @@ struct ProcessedClothingImageImport: Sendable {
     let categorySuggestion: ClothingImageCategorySuggestion?
 }
 
+private struct ProcessedWhiteBackgroundImage: Sendable {
+    let data: Data
+    let thumbnailData: Data
+}
+
 enum ClothingImageImportProcessor {
     nonisolated static func process(_ imageData: Data) -> ProcessedClothingImageImport {
         let optimizedData = ImageDataOptimizer.optimizedJPEGData(from: imageData) ?? imageData
@@ -128,6 +133,7 @@ struct ClothingEditorForm: View {
     @Binding var draft: ClothingDraft
     let showsSaveSection: Bool
     let saveButtonTitle: String
+    var isSaveInProgress: Bool = false
     let onSave: () -> Void
 
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -160,11 +166,16 @@ struct ClothingEditorForm: View {
             if showsSaveSection {
                 Section {
                     Button(action: onSave) {
-                        Text(saveButtonTitle)
-                            .font(.headline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 8) {
+                            if isSaveInProgress {
+                                ProgressView()
+                            }
+                            Text(isSaveInProgress ? "正在保存..." : saveButtonTitle)
+                        }
+                        .font(.headline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
                     }
-                    .disabled(!draft.isValid || isImportingImage || isGeneratingWhiteBackground)
+                    .disabled(!draft.isValid || isImportingImage || isGeneratingWhiteBackground || isSaveInProgress)
                 }
             }
         }
@@ -188,7 +199,7 @@ struct ClothingEditorForm: View {
     private var imageSection: some View {
         Section("图片") {
             VStack(spacing: 14) {
-                ClothingImagePreview(imageData: draft.imageData, imageSymbol: draft.imageSymbol, tintColor: draft.colorPreview)
+                ClothingImagePreview(imageData: draft.thumbnailData ?? draft.imageData, imageSymbol: draft.imageSymbol, tintColor: draft.colorPreview)
                     .frame(height: 220)
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 118), spacing: 12)], spacing: 12) {
@@ -537,19 +548,21 @@ struct ClothingEditorForm: View {
         defer { isGeneratingWhiteBackground = false }
 
         do {
-            let processedData = try await Task.detached(priority: .userInitiated) {
-                try ClothingBackgroundImageProcessor.whiteBackgroundJPEGData(from: imageData)
+            let processedImage = try await Task.detached(priority: .userInitiated) {
+                let processedData = try ClothingBackgroundImageProcessor.whiteBackgroundJPEGData(from: imageData)
+                let thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: processedData) ?? processedData
+                return ProcessedWhiteBackgroundImage(data: processedData, thumbnailData: thumbnailData)
             }.value
 
             guard imageMutationToken == sourceToken, draft.imageData == imageData else { return }
 
-            draft.imageData = processedData
-            draft.thumbnailData = ImageDataOptimizer.thumbnailJPEGData(from: processedData) ?? processedData
+            draft.imageData = processedImage.data
+            draft.thumbnailData = processedImage.thumbnailData
             imageMutationToken = UUID()
             whiteBackgroundMessage = "已生成白底图，用于衣橱展示和搭配选择。"
             imageImportStatus = ClothingImageImportStatus(
                 originalByteCount: imageData.count,
-                storedByteCount: processedData.count
+                storedByteCount: processedImage.data.count
             )
             imageImportFailureMessage = nil
         } catch let error as ClothingBackgroundImageProcessingError {

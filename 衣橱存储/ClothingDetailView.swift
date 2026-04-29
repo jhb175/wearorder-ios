@@ -438,21 +438,17 @@ struct ClothingImagePreview: View {
     let imageData: Data?
     let imageSymbol: String
     let tintColor: Color
+    @State private var decodedImage: PlatformImage?
+    @State private var decodedCacheKey: String?
 
     var body: some View {
+        let currentCacheKey = cacheKey
+
         RoundedRectangle(cornerRadius: 32, style: .continuous)
             .fill(tintColor.gradient)
             .overlay {
-                if let imageData, let image = PlatformImage(data: imageData) {
-                    #if canImport(UIKit)
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                    #elseif canImport(AppKit)
-                    Image(nsImage: image)
-                        .resizable()
-                        .scaledToFill()
-                    #endif
+                if decodedCacheKey == currentCacheKey, let decodedImage {
+                    platformImageView(decodedImage)
                 } else {
                     Image(systemName: imageSymbol)
                         .font(.system(size: 56, weight: .semibold))
@@ -460,6 +456,53 @@ struct ClothingImagePreview: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .task(id: currentCacheKey) {
+                await decodePreviewImage(cacheKey: currentCacheKey)
+            }
+    }
+
+    private var cacheKey: String {
+        [
+            imageSymbol,
+            String(imageData?.count ?? 0),
+            String(imageData?.first ?? 0),
+            String(imageData?.last ?? 0)
+        ].joined(separator: "-")
+    }
+
+    @ViewBuilder
+    private func platformImageView(_ image: PlatformImage) -> some View {
+        #if canImport(UIKit)
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+        #elseif canImport(AppKit)
+        Image(nsImage: image)
+            .resizable()
+            .scaledToFill()
+        #endif
+    }
+
+    private func decodePreviewImage(cacheKey: String) async {
+        guard let imageData else {
+            decodedImage = nil
+            decodedCacheKey = nil
+            return
+        }
+
+        decodedImage = nil
+        decodedCacheKey = nil
+        let decodedCGImage = await Task.detached(priority: .utility) {
+            WardrobeImageDecoder.decodeCGImage(from: imageData, maxPixelSize: 700)
+        }.value
+
+        guard !Task.isCancelled, let decodedCGImage else { return }
+        #if canImport(UIKit)
+        decodedImage = UIImage(cgImage: decodedCGImage)
+        #elseif canImport(AppKit)
+        decodedImage = NSImage(cgImage: decodedCGImage, size: .zero)
+        #endif
+        decodedCacheKey = cacheKey
     }
 }
 
