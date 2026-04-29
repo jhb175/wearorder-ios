@@ -41,6 +41,9 @@ open 衣橱存储.xcodeproj
 
 ## 最近完成的关键修复
 
+- WeatherKit 真机/TestFlight 准备：Xcode Capability 已包含 WeatherKit，代码通过 `WeatherService.shared.weather(for:)` 获取天气，不再使用第三方免费天气端点。
+- 全球城市天气：城市天气不再默认填上海；支持常见全球城市内置兜底，并对未知城市走系统地理编码。英文重名城市如 `Paris Texas`、`London Ontario` 不会被错误匹配到法国巴黎或英国伦敦。
+- 天气错误分类：WeatherKit 和城市地理编码的网络失败会归类为“网络不可用”；WeatherKit entitlement / provisioning 问题会提示需要在 Apple Developer 和 Xcode Capability 中启用。
 - 删除单件衣物、批量删除、清空本地数据：改为先保存 SwiftData 删除事务，成功后再删除图片文件。
 - 备份恢复：更新已有衣物时不再提前删除旧图片，保存成功后再清理旧文件。
 - `Info.plist` 保留 `remote-notification` 后台模式，因为 CloudKit 同步需要该后台能力；这不是自定义 APNs 推送实现。
@@ -87,6 +90,26 @@ xcodebuild test \
 - 普通朋友测试建议走外部测试组；外部测试需要 Beta App Review。
 - 外部测试审核通过后，测试员通过 TestFlight 邀请安装。
 - 每次重新上传都要增加 Build Number；Marketing Version 可以先保持 `1.0.0`。
+- WeatherKit 后台开通后，必须重新 Archive 并安装新的 TestFlight build；旧包不会自动获得新的 entitlement。
+- 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`WeatherKit 尚未配置完成` 通常是 App ID、Capability 或 provisioning profile 没刷新。
+
+## 2026-04-29 天气与测试记录
+
+- 最近天气相关提交：
+  - `7e23360 Improve global weather city resolution`
+  - `5638dd0 Fix city weather network error classification`
+- 已跑验证：
+  - `xcodebuild test -project 衣橱存储.xcodeproj -scheme 衣橱存储 -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`
+  - `xcodebuild test -project 衣橱存储.xcodeproj -scheme 衣橱存储 -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:衣橱存储Tests/WeatherForecastServiceTests`
+  - `bash scripts/run_local_smoke_test.sh`
+  - `bash scripts/audit_app_store_readiness.sh --strict`
+  - `git diff --check`
+- 下一台 Mac 接手后，先确认 `Signing & Capabilities` 中 `Sign in with Apple`、`iCloud / CloudKit`、`WeatherKit` 仍在，并确认 Team 是付费开发者团队。
+- TestFlight 真机天气必测：
+  - 授权定位后首页应显示 Apple Weather 真实天气。
+  - 拒绝定位后选择 `Tokyo`、`New York`、`London`、`Paris`、`Seoul` 等城市应能获取天气。
+  - 输入重名城市如 `Paris, Texas, United States` 应通过系统地理编码解析，不应被内置巴黎兜底抢走。
+  - 断网时应提示网络不可用，不应提示城市不存在。
 
 ## 下一步优先级
 

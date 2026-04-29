@@ -1,10 +1,10 @@
 # 衣序 WearOrder 内部 TestFlight 验证记录
 
-最后更新：2026-04-27
+最后更新：2026-04-29
 
 ## 当前结论
 
-当前代码已经通过本机自动检查，但还没有完成真机权限与真实使用路径验证。建议先进入内部 TestFlight 或 Xcode 真机安装测试，不建议直接提交公开上架。
+当前代码已经通过本机自动检查，并已进入 TestFlight 实测阶段。下一步重点不是继续加功能，而是在真机上验证权限、天气、图片导入性能、CloudKit 同步和核心数据安全路径。
 
 ## 自动检查记录
 
@@ -18,14 +18,15 @@
 | `xcodebuild test` | 通过 | iPhone 17 Pro / iOS 26.4.1 模拟器测试通过。 |
 | Release 模拟器构建 | 通过 | iPhone 17 Pro / iOS 26.4.1 模拟器 Release 构建通过。 |
 | 真机设备检测 | 通过 | Xcode 可看到已连接真机。 |
-| Release 真机签名构建 | 阻塞 | 构建被签名挡住：需要在 Xcode Signing & Capabilities 中选择 Development Team。 |
+| Release 真机签名构建 | 通过 | 付费开发者团队已配置，可进行 Archive/TestFlight 上传。 |
+| WeatherKit Capability | 通过 | Xcode Capability 和 entitlements 已包含 WeatherKit；仍需用新版 TestFlight 包做真机天气验证。 |
 
 ## 当前阻塞项
 
 | 阻塞项 | 状态 | 处理方式 |
 | --- | --- | --- |
-| Development Team 未配置 | 待处理 | 在 Xcode 打开 `衣橱存储.xcodeproj`，选择 target `衣橱存储`，进入 Signing & Capabilities，勾选 Automatically manage signing，并选择你的 Apple Team。 |
-| TestFlight 上传权限 | 待确认 | 上传 TestFlight 需要 Apple Developer Program 年会员；免费账号只能真机本地安装测试。 |
+| 真机天气结果 | 待实测 | 安装最新 TestFlight build 后，分别测试定位天气、城市天气、断网错误提示和 WeatherKit 授权状态。 |
+| 外部测试审核 | 待 Apple 处理 | 外部测试组需要 Beta App Review；内部测试不需要外部审核，但测试员必须是 App Store Connect 团队成员。 |
 
 ## 真机必测路径
 
@@ -35,8 +36,8 @@
 | 2 | 相机拍衣物 | 待测 | 相机权限文案正确；拍摄后能压缩保存；失败有反馈。 |
 | 3 | 相册导入衣物 | 待测 | 相册权限文案正确；图片可导入；分类和颜色建议不覆盖手动修改。 |
 | 4 | 编辑与删除衣物 | 待测 | 编辑能保存；删除前能看到关联 OOTD 和计划影响。 |
-| 5 | 天气定位 | 待测 | 启用 WeatherKit Capability 后，授权定位显示 Apple Weather 真实预报；天气推荐入口不绕过预报。 |
-| 6 | 城市天气兜底 | 待测 | 拒绝定位后能选择城市；天气来源展示清楚。 |
+| 5 | 天气定位 | 待测 | 授权定位后显示 Apple Weather 真实预报；天气推荐入口不绕过预报。 |
+| 6 | 城市天气兜底 | 待测 | 拒绝定位后能选择全球城市；Tokyo、New York、London、Paris、Seoul 等城市可返回天气；重名城市不被错误匹配。 |
 | 7 | 创建并保存 OOTD | 待测 | 上装加下装或裙装可保存；包袋和配饰详情都能显示。 |
 | 8 | 创建计划 | 待测 | 必须绑定 OOTD；同日计划和缺失搭配提示合理。 |
 | 9 | 本地通知提醒 | 待测 | 未来提醒能触发；拒绝权限、过期时间和缺失时间都有反馈。 |
