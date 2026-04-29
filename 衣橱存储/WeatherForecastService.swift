@@ -12,6 +12,7 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
         case networkUnavailable
         case invalidCityName
         case cityNotFound(String)
+        case cityLookupUnavailable(String)
         case weatherKitUnavailable
 
         var userMessage: String {
@@ -32,6 +33,8 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
                 "请输入城市名称，用于查询天气预报。"
             case .cityNotFound(let cityName):
                 "没有找到“\(cityName)”的天气预报，请检查城市名称后重试。"
+            case .cityLookupUnavailable(let cityName):
+                "暂时无法解析“\(cityName)”的位置，请稍后重试或换一个更明确的城市名称。"
             case .weatherKitUnavailable:
                 "WeatherKit 尚未配置完成，请在 Apple Developer 后台和 Xcode Capability 中启用 WeatherKit。"
             }
@@ -145,16 +148,70 @@ private enum WeatherKitForecastClient {
             throw error
         } catch WeatherError.permissionDenied {
             throw WeatherForecastService.ForecastError.weatherKitUnavailable
-        } catch let error as URLError where error.code == .notConnectedToInternet || error.code == .networkConnectionLost {
-            throw WeatherForecastService.ForecastError.networkUnavailable
         } catch {
-            throw WeatherForecastService.ForecastError.networkUnavailable
+            throw mappedForecastError(from: error)
         }
+    }
+
+    private static func mappedForecastError(from error: Error) -> WeatherForecastService.ForecastError {
+        if let urlError = error as? URLError,
+           networkURLErrorCodes.contains(urlError.code) {
+            return .networkUnavailable
+        }
+
+        let nsError = error as NSError
+        if isWeatherKitConfigurationError(nsError) {
+            return .weatherKitUnavailable
+        }
+
+        if isNetworkLikeError(nsError) {
+            return .networkUnavailable
+        }
+
+        return .forecastUnavailable
+    }
+
+    private static let networkURLErrorCodes: Set<URLError.Code> = [
+        .notConnectedToInternet,
+        .networkConnectionLost,
+        .cannotConnectToHost,
+        .cannotFindHost,
+        .dnsLookupFailed,
+        .timedOut
+    ]
+
+    private static func isNetworkLikeError(_ error: NSError) -> Bool {
+        guard error.domain == NSURLErrorDomain else { return false }
+        return true
+    }
+
+    private static func isWeatherKitConfigurationError(_ error: NSError) -> Bool {
+        let diagnosticText = [
+            error.domain,
+            error.localizedDescription,
+            String(describing: error.userInfo)
+        ]
+            .joined(separator: " ")
+            .lowercased()
+
+        return diagnosticText.contains("entitlement")
+            || diagnosticText.contains("permission")
+            || diagnosticText.contains("denied")
+            || diagnosticText.contains("unauthorized")
+            || diagnosticText.contains("jwt")
+            || diagnosticText.contains("authenticator")
     }
 }
 
 private enum WeatherCityResolver {
     static func resolveCity(named cityName: String) async throws -> ResolvedWeatherCity {
+        if let knownCity = WeatherCityFallbackDirectory.city(matching: cityName) {
+            return ResolvedWeatherCity(
+                location: CLLocation(latitude: knownCity.latitude, longitude: knownCity.longitude),
+                sourceTitle: knownCity.displayName
+            )
+        }
+
         do {
             let placemarks = try await CLGeocoder().geocodeAddressString(cityName)
             guard let placemark = placemarks.first,
@@ -170,11 +227,97 @@ private enum WeatherCityResolver {
             if error.code == .geocodeFoundNoResult || error.code == .geocodeFoundPartialResult {
                 throw WeatherForecastService.ForecastError.cityNotFound(cityName)
             }
-            throw WeatherForecastService.ForecastError.networkUnavailable
+            if error.code == .network {
+                throw WeatherForecastService.ForecastError.cityLookupUnavailable(cityName)
+            }
+            throw WeatherForecastService.ForecastError.forecastUnavailable
         } catch {
             throw WeatherForecastService.ForecastError.cityNotFound(cityName)
         }
     }
+}
+
+enum WeatherCityFallbackDirectory {
+    struct City: Equatable {
+        let displayName: String
+        let aliases: [String]
+        let latitude: Double
+        let longitude: Double
+    }
+
+    nonisolated static func city(matching input: String) -> City? {
+        let normalizedInput = normalized(input)
+        guard !normalizedInput.isEmpty else { return nil }
+
+        return cities.first { city in
+            city.aliases
+                .map(normalized)
+                .contains { alias in
+                    normalizedInput == alias || normalizedInput.contains(alias)
+                }
+        }
+    }
+
+    private nonisolated static func normalized(_ value: String) -> String {
+        value
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+            .replacingOccurrences(of: "市", with: "")
+            .replacingOccurrences(of: "省", with: "")
+            .replacingOccurrences(of: "特别行政区", with: "")
+            .components(separatedBy: .whitespacesAndNewlines)
+            .joined()
+            .lowercased()
+    }
+
+    private nonisolated static let cities: [City] = [
+        City(displayName: "上海", aliases: ["上海", "上海市", "Shanghai"], latitude: 31.2304, longitude: 121.4737),
+        City(displayName: "北京", aliases: ["北京", "北京市", "Beijing", "Peking"], latitude: 39.9042, longitude: 116.4074),
+        City(displayName: "广州", aliases: ["广州", "广州市", "Guangzhou", "Canton"], latitude: 23.1291, longitude: 113.2644),
+        City(displayName: "深圳", aliases: ["深圳", "深圳市", "Shenzhen"], latitude: 22.5431, longitude: 114.0579),
+        City(displayName: "杭州", aliases: ["杭州", "杭州市", "Hangzhou"], latitude: 30.2741, longitude: 120.1551),
+        City(displayName: "南京", aliases: ["南京", "南京市", "Nanjing"], latitude: 32.0603, longitude: 118.7969),
+        City(displayName: "苏州", aliases: ["苏州", "苏州市", "Suzhou"], latitude: 31.2989, longitude: 120.5853),
+        City(displayName: "成都", aliases: ["成都", "成都市", "Chengdu"], latitude: 30.5728, longitude: 104.0668),
+        City(displayName: "重庆", aliases: ["重庆", "重庆市", "Chongqing"], latitude: 29.5630, longitude: 106.5516),
+        City(displayName: "武汉", aliases: ["武汉", "武汉市", "Wuhan"], latitude: 30.5928, longitude: 114.3055),
+        City(displayName: "西安", aliases: ["西安", "西安市", "Xi'an", "Xian"], latitude: 34.3416, longitude: 108.9398),
+        City(displayName: "天津", aliases: ["天津", "天津市", "Tianjin"], latitude: 39.3434, longitude: 117.3616),
+        City(displayName: "青岛", aliases: ["青岛", "青岛市", "Qingdao"], latitude: 36.0671, longitude: 120.3826),
+        City(displayName: "厦门", aliases: ["厦门", "厦门市", "Xiamen"], latitude: 24.4798, longitude: 118.0894),
+        City(displayName: "福州", aliases: ["福州", "福州市", "Fuzhou"], latitude: 26.0745, longitude: 119.2965),
+        City(displayName: "长沙", aliases: ["长沙", "长沙市", "Changsha"], latitude: 28.2282, longitude: 112.9388),
+        City(displayName: "郑州", aliases: ["郑州", "郑州市", "Zhengzhou"], latitude: 34.7466, longitude: 113.6254),
+        City(displayName: "合肥", aliases: ["合肥", "合肥市", "Hefei"], latitude: 31.8206, longitude: 117.2272),
+        City(displayName: "宁波", aliases: ["宁波", "宁波市", "Ningbo"], latitude: 29.8683, longitude: 121.5440),
+        City(displayName: "佛山", aliases: ["佛山", "佛山市", "Foshan"], latitude: 23.0215, longitude: 113.1214),
+        City(displayName: "东莞", aliases: ["东莞", "东莞市", "Dongguan"], latitude: 23.0207, longitude: 113.7518),
+        City(displayName: "无锡", aliases: ["无锡", "无锡市", "Wuxi"], latitude: 31.4912, longitude: 120.3119),
+        City(displayName: "济南", aliases: ["济南", "济南市", "Jinan"], latitude: 36.6512, longitude: 117.1201),
+        City(displayName: "大连", aliases: ["大连", "大连市", "Dalian"], latitude: 38.9140, longitude: 121.6147),
+        City(displayName: "沈阳", aliases: ["沈阳", "沈阳市", "Shenyang"], latitude: 41.8057, longitude: 123.4315),
+        City(displayName: "哈尔滨", aliases: ["哈尔滨", "哈尔滨市", "Harbin"], latitude: 45.8038, longitude: 126.5349),
+        City(displayName: "长春", aliases: ["长春", "长春市", "Changchun"], latitude: 43.8171, longitude: 125.3235),
+        City(displayName: "昆明", aliases: ["昆明", "昆明市", "Kunming"], latitude: 25.0389, longitude: 102.7183),
+        City(displayName: "贵阳", aliases: ["贵阳", "贵阳市", "Guiyang"], latitude: 26.6477, longitude: 106.6302),
+        City(displayName: "南宁", aliases: ["南宁", "南宁市", "Nanning"], latitude: 22.8170, longitude: 108.3669),
+        City(displayName: "南昌", aliases: ["南昌", "南昌市", "Nanchang"], latitude: 28.6820, longitude: 115.8579),
+        City(displayName: "太原", aliases: ["太原", "太原市", "Taiyuan"], latitude: 37.8706, longitude: 112.5489),
+        City(displayName: "石家庄", aliases: ["石家庄", "石家庄市", "Shijiazhuang"], latitude: 38.0428, longitude: 114.5149),
+        City(displayName: "乌鲁木齐", aliases: ["乌鲁木齐", "乌鲁木齐市", "Urumqi"], latitude: 43.8256, longitude: 87.6168),
+        City(displayName: "拉萨", aliases: ["拉萨", "拉萨市", "Lhasa"], latitude: 29.6520, longitude: 91.1721),
+        City(displayName: "兰州", aliases: ["兰州", "兰州市", "Lanzhou"], latitude: 36.0611, longitude: 103.8343),
+        City(displayName: "海口", aliases: ["海口", "海口市", "Haikou"], latitude: 20.0440, longitude: 110.1999),
+        City(displayName: "三亚", aliases: ["三亚", "三亚市", "Sanya"], latitude: 18.2528, longitude: 109.5119),
+        City(displayName: "香港", aliases: ["香港", "Hong Kong", "HK"], latitude: 22.3193, longitude: 114.1694),
+        City(displayName: "澳门", aliases: ["澳门", "Macau", "Macao"], latitude: 22.1987, longitude: 113.5439),
+        City(displayName: "台北", aliases: ["台北", "台北市", "Taipei"], latitude: 25.0330, longitude: 121.5654),
+        City(displayName: "东京", aliases: ["东京", "Tokyo"], latitude: 35.6762, longitude: 139.6503),
+        City(displayName: "首尔", aliases: ["首尔", "Seoul"], latitude: 37.5665, longitude: 126.9780),
+        City(displayName: "新加坡", aliases: ["新加坡", "Singapore"], latitude: 1.3521, longitude: 103.8198),
+        City(displayName: "纽约", aliases: ["纽约", "New York", "NYC"], latitude: 40.7128, longitude: -74.0060),
+        City(displayName: "伦敦", aliases: ["伦敦", "London"], latitude: 51.5072, longitude: -0.1276),
+        City(displayName: "巴黎", aliases: ["巴黎", "Paris"], latitude: 48.8566, longitude: 2.3522)
+    ]
 }
 
 private struct ResolvedWeatherCity {
