@@ -111,6 +111,41 @@ xcodebuild test \
   - 输入重名城市如 `Paris, Texas, United States` 应通过系统地理编码解析，不应被内置巴黎兜底抢走。
   - 断网时应提示网络不可用，不应提示城市不存在。
 
+## 2026-04-29 换机打包记录
+
+- 当前准备给 TestFlight 继续测试的版本是 `1.0.0 (5)`。
+- 最新提交：
+  - `f8238ee Bump build number to 5`
+  - `03ad549 Document TestFlight weather handoff`
+  - `5638dd0 Fix city weather network error classification`
+  - `7e23360 Improve global weather city resolution`
+- 已确认 Xcode build settings：
+  - `MARKETING_VERSION = 1.0.0`
+  - `CURRENT_PROJECT_VERSION = 5`
+- 当前仓库已推送到 GitHub：`https://github.com/jhb175/wearorder-ios`
+- 新 Mac 接手步骤：
+
+```bash
+git clone https://github.com/jhb175/wearorder-ios.git
+cd wearorder-ios
+git status
+```
+
+- 如果新 Mac 已经 clone 过：
+
+```bash
+cd wearorder-ios
+git pull
+git status
+```
+
+- 打包前在 Xcode 确认：
+  - Team 选择付费 Apple Developer Program 团队。
+  - Bundle Identifier 是 `com.ramsey.wearorder`。
+  - Signing & Capabilities 中有 `Sign in with Apple`、`WeatherKit`。
+  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (6)`。
+- 如果 WeatherKit 真机仍提示不可用，先重新生成/刷新 provisioning profile，再 Archive 新 build；旧 TestFlight 包不会自动获得新 entitlement。
+
 ## 下一步优先级
 
 1. 真机完整测试：添加衣物、批量导入、编辑、删除、OOTD、计划、提醒、天气、Apple ID 登录、CloudKit 同步。
