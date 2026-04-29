@@ -122,7 +122,8 @@ xcodebuild test \
 - 已确认 Xcode build settings：
   - `MARKETING_VERSION = 1.0.0`
   - `CURRENT_PROJECT_VERSION = 7`
-  - `Release CODE_SIGN_IDENTITY = Apple Distribution`
+  - `CODE_SIGN_STYLE = Automatic`
+  - 不要在 Build Settings 里手动固定 `CODE_SIGN_IDENTITY = Apple Distribution`；否则 Xcode 自动签名会和手动分发签名冲突。
 - 当前仓库已推送到 GitHub：`https://github.com/jhb175/wearorder-ios`
 - 新 Mac 接手步骤：
 
@@ -145,7 +146,8 @@ git status
   - Bundle Identifier 是 `com.ramsey.wearorder`。
   - Signing & Capabilities 中有 `Sign in with Apple`、`WeatherKit`。
   - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (8)`。
-- WeatherKit 第 6 版失败的根因：App ID 后台已经开启 WeatherKit，归档包也包含 `com.apple.developer.weatherkit`，但 Release 构建设置仍解析为 `Apple Development`。第 7 版已把 Release 签名身份固定为 `Apple Distribution`，需要重新 Archive 并上传 TestFlight。
+- WeatherKit 第 6 版失败后的处理：App ID 后台已经开启 WeatherKit，归档包也包含 `com.apple.developer.weatherkit`。第 7 版保留自动签名，避免 `Automatically manage signing` 和手动 `Apple Distribution` 冲突；重新 Archive 时让 Xcode 生成/选择包含 WeatherKit 的 provisioning profile。
+- 2026-04-29 21:02 已验证 Release generic iOS build 成功，构建日志里包含 `com.apple.developer.weatherkit = 1`。如果 Xcode 仍报签名问题，先 Clean Build Folder，再重新 Archive。
 - 如果 WeatherKit 真机仍提示不可用，先确认安装的是 `1.0.0 (7)` 或更新版本，并在 Organizer 上传后重新安装 TestFlight 包；旧 TestFlight 包不会自动获得新签名能力。
 
 ## 下一步优先级
