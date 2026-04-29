@@ -13,11 +13,14 @@ struct CreatePlanView: View {
     @State private var reminderEnabled = true
     @State private var reminderTime = Calendar.current.date(bySettingHour: 8, minute: 30, second: 0, of: .now) ?? .now
     @State private var selectedOutfitID: PersistentIdentifier?
+    @State private var presetSearchText = ""
+    @State private var visiblePresetLimit = 8
     @State private var isSaving = false
     @State private var showsSaveError = false
     @State private var saveErrorMessage = ""
     private let showsPreselectedHint: Bool
     private let onSaved: ((OutfitPlan, PlannerNotificationResult?) -> Void)?
+    private let presetPageSize = 8
 
     init(
         draft: PlanCreationDraft? = nil,
@@ -86,6 +89,12 @@ struct CreatePlanView: View {
         } message: {
             Text(saveErrorMessage)
         }
+        .onChange(of: presetSearchText) { _, _ in
+            visiblePresetLimit = presetPageSize
+        }
+        .onChange(of: outfits) { _, _ in
+            visiblePresetLimit = min(max(presetPageSize, visiblePresetLimit), max(presetPageSize, filteredOutfits.count))
+        }
     }
 
     private var formSection: some View {
@@ -111,7 +120,7 @@ struct CreatePlanView: View {
 
     private var outfitSelectionSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "选择预设", subtitle: outfits.isEmpty ? "暂无预设" : "\(outfits.count) 套")
+            sectionHeader(title: "选择 OOTD 预设", subtitle: presetSelectionSubtitle)
 
             if outfits.isEmpty {
                 Text("先去 OOTD 的预设库保存至少一套常用组合，这里才能直接排期。")
@@ -120,35 +129,185 @@ struct CreatePlanView: View {
                     .padding(18)
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(outfits, id: \.id) { outfit in
-                            let isSelected = selectedOutfitID == outfit.persistentModelID
+                presetSearchField
 
+                if let selectedOutfit {
+                    selectedPresetCard(outfit: selectedOutfit)
+                }
+
+                if filteredOutfits.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("没有匹配的预设")
+                            .font(.headline)
+                        Text("换个关键词，或清空搜索后查看全部 OOTD 预设。")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Button {
+                            presetSearchText = ""
+                        } label: {
+                            Label("清空搜索", systemImage: "xmark.circle")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                    }
+                    .padding(18)
+                    .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(displayedOutfits, id: \.id) { outfit in
+                            selectablePresetCard(outfit: outfit)
+                        }
+
+                        if hasMoreOutfits {
                             Button {
-                                selectedOutfitID = isSelected ? nil : outfit.persistentModelID
+                                visiblePresetLimit += presetPageSize
+                                AppHaptics.selection()
                             } label: {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(outfit.title)
+                                HStack {
+                                    Text("继续加载预设")
                                         .font(.subheadline.weight(.semibold))
-                                        .lineLimit(1)
-                                    Text(outfit.summaryText)
-                                        .font(.caption)
+                                    Spacer()
+                                    Text("\(displayedOutfits.count)/\(filteredOutfits.count)")
+                                        .font(.caption.monospacedDigit().weight(.medium))
                                         .foregroundStyle(.secondary)
-                                        .lineLimit(2)
                                 }
-                                .frame(width: 190, alignment: .leading)
-                                .padding(14)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
                             }
                             .buttonStyle(HomePressableButtonStyle())
-                            .glassCard(
-                                cornerRadius: HomeMetrics.secondaryRadius,
-                                tint: isSelected ? Color.white.opacity(0.24) : Color.white.opacity(0.12)
-                            )
+                            .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
                         }
                     }
-                    .padding(.vertical, 2)
                 }
+            }
+        }
+    }
+
+    private var presetSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("搜索 OOTD、场景或单品", text: $presetSearchText)
+                .textFieldStyle(.plain)
+                .font(.subheadline)
+
+            if !presetSearchText.isEmpty {
+                Button {
+                    presetSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("清空预设搜索")
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
+    }
+
+    private func selectedPresetCard(outfit: OOTDOutfit) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            presetThumbnailStrip(for: outfit, maxItems: 3)
+                .frame(width: 120, height: 52)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Label("当前选择", systemImage: "checkmark.seal.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+                Text(outfit.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(outfit.summaryText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.green.opacity(0.12))
+    }
+
+    private func selectablePresetCard(outfit: OOTDOutfit) -> some View {
+        let isSelected = selectedOutfitID == outfit.persistentModelID
+
+        return Button {
+            selectedOutfitID = isSelected ? nil : outfit.persistentModelID
+            AppHaptics.selection()
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                presetThumbnailStrip(for: outfit, maxItems: 3)
+                    .frame(width: 112, height: 58)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        Text(outfit.title)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        if outfit.isToday {
+                            Text("今日")
+                                .font(.caption2.weight(.bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                        }
+                    }
+
+                    Text(outfit.notes.isEmpty ? outfit.summaryText : outfit.notes)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+
+                    Text(outfit.summaryText)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSelected ? .green : .secondary)
+            }
+            .padding(14)
+        }
+        .buttonStyle(HomePressableButtonStyle())
+        .glassCard(
+            cornerRadius: HomeMetrics.secondaryRadius,
+            tint: isSelected ? Color.green.opacity(0.14) : Color.white.opacity(0.12)
+        )
+    }
+
+    private func presetThumbnailStrip(for outfit: OOTDOutfit, maxItems: Int) -> some View {
+        HStack(spacing: -12) {
+            ForEach(Array(outfit.orderedItems.prefix(maxItems)), id: \.id) { item in
+                WardrobeItemImageView(item: item, cornerRadius: 14, symbolFont: .caption.weight(.semibold))
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(.white.opacity(0.72), lineWidth: 1)
+                    }
+            }
+
+            if outfit.orderedItems.isEmpty {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.14))
+                    .overlay {
+                        Image(systemName: "person.crop.rectangle.stack")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .aspectRatio(1, contentMode: .fit)
             }
         }
     }
@@ -217,6 +376,36 @@ struct CreatePlanView: View {
     private var selectedOutfit: OOTDOutfit? {
         guard let selectedOutfitID else { return nil }
         return outfits.first { $0.persistentModelID == selectedOutfitID }
+    }
+
+    private var filteredOutfits: [OOTDOutfit] {
+        let query = presetSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return outfits }
+
+        return outfits.filter { outfit in
+            let itemFields = outfit.orderedItems.flatMap { item in
+                item.searchableFields + item.styleTags
+            }
+            let searchableText = ([outfit.title, outfit.notes, outfit.summaryText] + itemFields)
+                .joined(separator: " ")
+            return searchableText.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var displayedOutfits: [OOTDOutfit] {
+        Array(filteredOutfits.prefix(visiblePresetLimit))
+    }
+
+    private var hasMoreOutfits: Bool {
+        displayedOutfits.count < filteredOutfits.count
+    }
+
+    private var presetSelectionSubtitle: String {
+        guard !outfits.isEmpty else { return "暂无预设" }
+        if filteredOutfits.count == outfits.count {
+            return "\(outfits.count) 套"
+        }
+        return "\(filteredOutfits.count) / \(outfits.count) 套"
     }
 
     private var canSave: Bool {

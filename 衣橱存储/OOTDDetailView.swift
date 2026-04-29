@@ -370,6 +370,7 @@ struct OOTDDetailView: View {
                 message: "首页“今日 OOTD”会立即同步这套搭配。"
             )
         } catch {
+            modelContext.rollback()
             feedback = ActionFeedbackState(
                 title: "保存失败",
                 message: error.localizedDescription,
@@ -390,6 +391,7 @@ struct OOTDDetailView: View {
             AppHaptics.warning()
             dismiss()
         } catch {
+            modelContext.rollback()
             feedback = ActionFeedbackState(
                 title: "删除失败",
                 message: error.localizedDescription,

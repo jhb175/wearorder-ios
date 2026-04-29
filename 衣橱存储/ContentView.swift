@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var selectedOOTDSection: OOTDWorkspaceSection = .today
     @State private var ootdSearchText = ""
     @State private var selectedOOTDListFilter: OOTDListFilter = .all
+    @State private var visibleOOTDPresetLimit = 8
     @State private var showsAddClothing = false
     @State private var showsRecommendationInput = false
     @State private var showsCreateOOTD = false
@@ -24,6 +25,7 @@ struct ContentView: View {
     @AppStorage("wardrobeWeatherFallbackCity") private var fallbackWeatherCity = ""
     @State private var showsWeatherCityPicker = false
     private let usesPreviewWeather: Bool
+    private let ootdPresetPageSize = 8
 
     enum HomeTab: Hashable {
         case home
@@ -180,6 +182,13 @@ struct ContentView: View {
         }
         .onChange(of: outfits) { _, newValue in
             syncViewModel(items: items, plans: plans, outfits: newValue)
+            clampVisibleOOTDPresetLimit()
+        }
+        .onChange(of: ootdSearchText) { _, _ in
+            resetVisibleOOTDPresetLimit()
+        }
+        .onChange(of: selectedOOTDListFilter) { _, _ in
+            resetVisibleOOTDPresetLimit()
         }
     }
 
@@ -1195,51 +1204,11 @@ struct ContentView: View {
             sectionHeader(title: "今日搭配", subtitle: viewModel.todayOutfit == nil ? "还未设置" : "当前读取中")
 
             if let todayOutfit = viewModel.todayOutfit {
-                NavigationLink {
+                OOTDCardView(recommendation: OutfitRecommendation(outfit: todayOutfit)) {
                     OOTDDetailView(outfit: todayOutfit) {
                         markOutfitAsToday(todayOutfit)
                     }
-                } label: {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(todayOutfit.title)
-                                    .font(.headline)
-                                Text(todayOutfit.notes.isEmpty ? todayOutfit.summaryText : todayOutfit.notes)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-
-                            Spacer()
-
-                            Text("今天")
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
-                        }
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
-                                ForEach(todayOutfit.orderedItems.prefix(5), id: \.id) { item in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: item.imageSymbol)
-                                            .font(.caption.weight(.medium))
-                                        Text(item.name)
-                                            .font(.caption.weight(.medium))
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                                }
-                            }
-                        }
-                    }
-                    .padding(18)
-                    .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
                 }
-                .buttonStyle(HomePressableButtonStyle())
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("还没有设置今日搭配")
@@ -1270,8 +1239,28 @@ struct ContentView: View {
             } else {
                 ootdFilterControls
 
-                ForEach(visibleOOTDOutfits, id: \.id) { outfit in
+                ForEach(displayedOOTDOutfits, id: \.id) { outfit in
                     ootdPresetCard(outfit)
+                }
+
+                if hasMoreOOTDPresets {
+                    Button {
+                        visibleOOTDPresetLimit += ootdPresetPageSize
+                        AppHaptics.selection()
+                    } label: {
+                        HStack {
+                            Text("继续加载预设")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text("\(displayedOOTDOutfits.count)/\(visibleOOTDOutfits.count)")
+                                .font(.caption.monospacedDigit().weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
                 }
             }
         }
@@ -1296,6 +1285,10 @@ struct ContentView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
+            }
+
+            if !outfit.orderedItems.isEmpty {
+                ootdPresetPreview(outfit)
             }
 
             Text(outfit.summaryText)
@@ -1367,6 +1360,40 @@ struct ContentView: View {
         }
         .padding(18)
         .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private func ootdPresetPreview(_ outfit: OOTDOutfit) -> some View {
+        let previewItems = Array(outfit.orderedItems.prefix(4))
+
+        return HStack(spacing: 10) {
+            ForEach(previewItems, id: \.id) { item in
+                WardrobeItemImageView(item: item, cornerRadius: 16, symbolFont: .title3.weight(.semibold))
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .overlay(alignment: .bottomLeading) {
+                        Text(item.category)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background {
+                                Capsule()
+                                    .fill(.black.opacity(0.32))
+                            }
+                            .padding(6)
+                    }
+            }
+
+            if previewItems.count < 4 {
+                ForEach(0..<(4 - previewItems.count), id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.white.opacity(0.12))
+                        .aspectRatio(1, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
     }
 
     private var ootdFilterControls: some View {
@@ -1696,6 +1723,26 @@ private extension ContentView {
     var visibleOOTDOutfits: [OOTDOutfit] {
         outfits.filter { outfit in
             matchesOOTDFilter(outfit) && matchesOOTDSearch(outfit)
+        }
+    }
+
+    var displayedOOTDOutfits: [OOTDOutfit] {
+        Array(visibleOOTDOutfits.prefix(visibleOOTDPresetLimit))
+    }
+
+    var hasMoreOOTDPresets: Bool {
+        displayedOOTDOutfits.count < visibleOOTDOutfits.count
+    }
+
+    func resetVisibleOOTDPresetLimit() {
+        visibleOOTDPresetLimit = ootdPresetPageSize
+    }
+
+    func clampVisibleOOTDPresetLimit() {
+        if visibleOOTDPresetLimit < ootdPresetPageSize {
+            visibleOOTDPresetLimit = ootdPresetPageSize
+        } else if visibleOOTDOutfits.count < visibleOOTDPresetLimit {
+            visibleOOTDPresetLimit = max(ootdPresetPageSize, visibleOOTDOutfits.count)
         }
     }
 
