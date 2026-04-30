@@ -9,6 +9,7 @@ struct PlanDetailView: View {
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
     @Query(sort: \OutfitPlan.date) private var plans: [OutfitPlan]
 
+    @State private var selectedPlanKind: OutfitPlanKind
     @State private var title: String
     @State private var occasion: String
     @State private var date: Date
@@ -22,6 +23,7 @@ struct PlanDetailView: View {
 
     init(plan: OutfitPlan) {
         self.plan = plan
+        _selectedPlanKind = State(initialValue: plan.planKind)
         _title = State(initialValue: plan.title)
         _occasion = State(initialValue: plan.occasion)
         _date = State(initialValue: plan.date)
@@ -77,6 +79,10 @@ struct PlanDetailView: View {
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Label(selectedPlanKind.listTitle, systemImage: selectedPlanKind.symbolName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
             Text(displayTitle)
                 .font(.system(size: 30, weight: .bold, design: .rounded))
 
@@ -102,6 +108,7 @@ struct PlanDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(title: "计划信息", subtitle: "可编辑")
 
+            planKindPicker
             textField(title: "计划标题", text: $title, prompt: "例如：周三通勤")
             textField(title: "场景", text: $occasion, prompt: "例如：办公室 / 约会 / 周末")
 
@@ -118,6 +125,37 @@ struct PlanDetailView: View {
         }
         .padding(18)
         .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private var planKindPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("计划类型")
+                .font(.subheadline.weight(.semibold))
+
+            HStack(spacing: 8) {
+                ForEach(OutfitPlanKind.allCases) { kind in
+                    Button {
+                        selectedPlanKind = kind
+                        AppHaptics.selection()
+                    } label: {
+                        Label(kind.title, systemImage: kind.symbolName)
+                            .font(.caption.weight(.semibold))
+                            .labelStyle(.titleAndIcon)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+                    .homeCardSurface(
+                        weight: selectedPlanKind == kind ? .secondary : .tertiary,
+                        cornerRadius: HomeMetrics.pillRadius
+                    )
+                }
+            }
+
+            Text(selectedPlanKind.helperText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder
@@ -387,8 +425,9 @@ struct PlanDetailView: View {
         let hadLinkedOutfit = plan.linkedOutfit != nil
         let selectedOutfit = selectedOutfit
 
-        plan.title = trimmedTitle.isEmpty ? "未命名计划" : trimmedTitle
-        plan.occasion = trimmedOccasion.isEmpty ? "穿搭安排" : trimmedOccasion
+        plan.planKind = selectedPlanKind
+        plan.title = trimmedTitle.isEmpty ? selectedPlanKind.defaultTitle : trimmedTitle
+        plan.occasion = trimmedOccasion.isEmpty ? selectedPlanKind.defaultOccasion : trimmedOccasion
         plan.date = date
         plan.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         plan.linkedOutfit = selectedOutfit
@@ -446,6 +485,7 @@ struct PlanDetailView: View {
         let targetReminderDate = reminderEnabled ? combinedReminderDate(on: targetDate) : nil
         let keepsReminder = reminderEnabled && (targetReminderDate ?? .now) > .now
         let copiedPlan = OutfitPlan(
+            planKind: selectedPlanKind,
             date: targetDate,
             title: displayTitle,
             occasion: displayOccasion,
@@ -568,7 +608,7 @@ struct PlanDetailView: View {
 
     private var displayOccasion: String {
         let trimmedOccasion = occasion.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedOccasion.isEmpty ? "穿搭安排" : trimmedOccasion
+        return trimmedOccasion.isEmpty ? selectedPlanKind.defaultOccasion : trimmedOccasion
     }
 
     private var nextReuseDate: Date {

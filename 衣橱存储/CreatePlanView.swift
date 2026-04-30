@@ -6,6 +6,7 @@ struct CreatePlanView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
 
+    @State private var selectedPlanKind: OutfitPlanKind = .daily
     @State private var title = "新的穿搭计划"
     @State private var occasion = "穿搭安排"
     @State private var notes = ""
@@ -34,6 +35,7 @@ struct CreatePlanView: View {
         let selectedOutfitID = draft?.selectedOutfitID ?? initialSelectedOutfitID
 
         _selectedOutfitID = State(initialValue: selectedOutfitID)
+        _selectedPlanKind = State(initialValue: draft?.planKind ?? .daily)
         _title = State(initialValue: draft?.title ?? suggestedTitle ?? "新的穿搭计划")
         _occasion = State(initialValue: draft?.occasion ?? "穿搭安排")
         _notes = State(initialValue: draft?.notes ?? "")
@@ -95,12 +97,16 @@ struct CreatePlanView: View {
         .onChange(of: outfits) { _, _ in
             visiblePresetLimit = min(max(presetPageSize, visiblePresetLimit), max(presetPageSize, filteredOutfits.count))
         }
+        .onChange(of: selectedPlanKind) { oldKind, newKind in
+            refreshDefaultsWhenKindChanges(from: oldKind, to: newKind)
+        }
     }
 
     private var formSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(title: "计划信息", subtitle: "日期与备注")
 
+            planKindPicker
             textField(title: "计划标题", text: $title, prompt: "例如：周三通勤")
             textField(title: "场景", text: $occasion, prompt: "例如：办公室 / 会面 / 周末")
             textField(title: "备注", text: $notes, prompt: "例如：下午开会前记得换上外套")
@@ -115,6 +121,37 @@ struct CreatePlanView: View {
                     .padding(12)
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
             }
+        }
+    }
+
+    private var planKindPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("计划类型")
+                .font(.subheadline.weight(.semibold))
+
+            HStack(spacing: 8) {
+                ForEach(OutfitPlanKind.allCases) { kind in
+                    Button {
+                        selectedPlanKind = kind
+                        AppHaptics.selection()
+                    } label: {
+                        Label(kind.title, systemImage: kind.symbolName)
+                            .font(.caption.weight(.semibold))
+                            .labelStyle(.titleAndIcon)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+                    .homeCardSurface(
+                        weight: selectedPlanKind == kind ? .secondary : .tertiary,
+                        cornerRadius: HomeMetrics.pillRadius
+                    )
+                }
+            }
+
+            Text(selectedPlanKind.helperText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -435,6 +472,7 @@ struct CreatePlanView: View {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOccasion = occasion.trimmingCharacters(in: .whitespacesAndNewlines)
         let plan = OutfitPlan(
+            planKind: selectedPlanKind,
             date: date,
             title: trimmedTitle.isEmpty ? "未命名计划" : trimmedTitle,
             occasion: trimmedOccasion.isEmpty ? "穿搭安排" : trimmedOccasion,
@@ -479,6 +517,19 @@ struct CreatePlanView: View {
                     isSaving = false
                 }
             }
+        }
+    }
+
+    private func refreshDefaultsWhenKindChanges(from oldKind: OutfitPlanKind, to newKind: OutfitPlanKind) {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedOccasion = occasion.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmedTitle.isEmpty || trimmedTitle == oldKind.defaultTitle || trimmedTitle == "新的穿搭计划" {
+            title = newKind.defaultTitle
+        }
+
+        if trimmedOccasion.isEmpty || trimmedOccasion == oldKind.defaultOccasion || trimmedOccasion == "穿搭安排" {
+            occasion = newKind.defaultOccasion
         }
     }
 

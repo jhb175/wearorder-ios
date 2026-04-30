@@ -476,6 +476,7 @@ private struct WardrobeBackupPayload: Codable {
 
     struct PlanRecord: Codable {
         let id: UUID
+        let planKindRawValue: String?
         let date: Date
         let title: String
         let occasion: String
@@ -489,6 +490,7 @@ private struct WardrobeBackupPayload: Codable {
 
         init(plan: OutfitPlan) {
             id = plan.id
+            planKindRawValue = plan.planKindRawValue
             date = plan.date
             title = plan.title
             occasion = plan.occasion
@@ -504,6 +506,7 @@ private struct WardrobeBackupPayload: Codable {
         func makeModel(outfitLookup: [UUID: OOTDOutfit]) -> OutfitPlan {
             OutfitPlan(
                 id: id,
+                planKind: OutfitPlanKind.normalized(planKindRawValue),
                 date: date,
                 title: title,
                 occasion: occasion,
@@ -521,6 +524,7 @@ private struct WardrobeBackupPayload: Codable {
             to plan: OutfitPlan,
             outfitLookup: [UUID: OOTDOutfit]
         ) {
+            plan.planKind = OutfitPlanKind.normalized(planKindRawValue)
             plan.date = date
             plan.title = title
             plan.occasion = occasion

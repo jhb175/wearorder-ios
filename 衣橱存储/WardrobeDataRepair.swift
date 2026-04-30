@@ -185,11 +185,14 @@ enum WardrobeDataRepair {
 
         let hasInvalidReminder = plan.reminderEnabled && ((plan.reminderDate ?? .distantPast) <= now)
         let shouldClearDisabledReminderDate = !plan.reminderEnabled && plan.reminderDate != nil
+        let normalizedPlanKind = OutfitPlanKind.normalized(plan.planKindRawValue)
+        let hasInvalidPlanKind = plan.planKindRawValue != normalizedPlanKind.rawValue
 
         let normalized = plan.title != normalizedTitle ||
         plan.occasion != normalizedOccasion ||
         plan.notes != normalizedNotes ||
         plan.outfitSummary != normalizedSummary ||
+        hasInvalidPlanKind ||
         shouldClearDisabledReminderDate ||
         hasInvalidReminder ||
         plan.updatedAt == nil
@@ -200,6 +203,7 @@ enum WardrobeDataRepair {
 
         if applyChanges {
             plan.title = normalizedTitle
+            plan.planKind = normalizedPlanKind
             plan.occasion = normalizedOccasion
             plan.notes = normalizedNotes
             plan.outfitSummary = normalizedSummary

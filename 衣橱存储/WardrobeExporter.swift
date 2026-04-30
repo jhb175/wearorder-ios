@@ -273,6 +273,7 @@ enum WardrobeExporter {
 
         for plan in sortedPlans {
             lines.append("- \(plan.title)")
+            lines.append("  类型：\(plan.planKind.listTitle)")
             lines.append("  日期：\(formattedDate(plan.date))")
             lines.append("  场景：\(plan.occasion)")
             lines.append("  搭配：\(plan.linkedOutfit?.title ?? plan.outfitSummary)")

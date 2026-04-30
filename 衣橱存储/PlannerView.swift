@@ -16,6 +16,7 @@ struct PlannerView: View {
     @State private var displayedMonth = Calendar.current.startOfMonth(for: .now)
     @State private var searchText = ""
     @State private var selectedFocusFilter: PlannerFocusFilter = .all
+    @State private var selectedKindFilter: OutfitPlanKind?
     @State private var selectedSortMode: PlannerSortMode = .dateAscending
     @State private var activePlanDraft: PlanCreationDraft?
     @State private var showsCreateOOTD = false
@@ -87,6 +88,7 @@ struct PlannerView: View {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
                 plannerCalendarSection
+                weeklyOutfitOverviewSection
                 plannerReminderStatusSection
                 quickTemplateSection
                 planToolsSection
@@ -146,6 +148,20 @@ struct PlannerView: View {
             }
             .buttonStyle(HomePressableButtonStyle())
             .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.2))
+        }
+    }
+
+    private var weeklyOutfitOverviewSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(title: "未来一周", subtitle: weekOverviewSubtitle)
+
+            VStack(spacing: 10) {
+                ForEach(weekOverviewDays) { day in
+                    weekOverviewRow(day)
+                }
+            }
+            .padding(14)
+            .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
         }
     }
 
@@ -438,17 +454,22 @@ struct PlannerView: View {
 
     private func calendarPlanPreviewRow(_ plan: OutfitPlan) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: plan.linkedOutfit == nil ? "calendar" : "checkmark.seal")
+            Image(systemName: plan.linkedOutfit == nil ? plan.planKind.symbolName : "checkmark.seal")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(plan.linkedOutfit == nil ? Color.secondary : Color.green)
                 .frame(width: 30, height: 30)
                 .homeCardSurface(weight: .tertiary, cornerRadius: 15)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(plan.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(plan.planKind.title)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Text(plan.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
                 Text(plan.linkedOutfit?.summaryText ?? plan.outfitSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -469,6 +490,75 @@ struct PlannerView: View {
         }
         .padding(10)
         .homeCardSurface(weight: .tertiary, cornerRadius: 16)
+    }
+
+    private func weekOverviewRow(_ day: WeekOverviewDay) -> some View {
+        let primaryPlan = day.plans.first
+
+        return HStack(spacing: 12) {
+            VStack(spacing: 3) {
+                Text(day.date.formatted(.dateTime.weekday(.abbreviated).locale(Locale(identifier: "zh_Hans_CN"))))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text(day.date.formatted(.dateTime.day().locale(Locale(identifier: "zh_Hans_CN"))))
+                    .font(.title3.monospacedDigit().weight(.bold))
+                    .foregroundStyle(day.isToday ? Color.accentColor : .primary)
+            }
+            .frame(width: 42)
+
+            VStack(alignment: .leading, spacing: 5) {
+                if let primaryPlan {
+                    HStack(spacing: 6) {
+                        Label(primaryPlan.planKind.title, systemImage: primaryPlan.planKind.symbolName)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                        Text(primaryPlan.title)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                    }
+
+                    Text(primaryPlan.linkedOutfit?.summaryText ?? primaryPlan.outfitSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text(day.isToday ? "今天还没安排 OOTD" : "未安排")
+                        .font(.subheadline.weight(.semibold))
+                    Text("可以从预设库快速排期")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let outfit = primaryPlan?.linkedOutfit, !outfit.orderedItems.isEmpty {
+                HStack(spacing: -9) {
+                    ForEach(Array(outfit.orderedItems.prefix(3)), id: \.id) { item in
+                        WardrobeItemImageView(item: item, cornerRadius: 11, symbolFont: .caption2.weight(.semibold))
+                            .frame(width: 38, height: 38)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.72), lineWidth: 1)
+                            }
+                    }
+                }
+                .frame(width: 72, alignment: .trailing)
+            } else {
+                Button {
+                    startCreatePlanFlow(on: day.date)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(HomePressableButtonStyle())
+                .homeCardSurface(weight: .tertiary, cornerRadius: 18)
+                .accessibilityLabel("安排 \(day.date.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_Hans_CN"))))")
+            }
+        }
+        .padding(12)
+        .homeCardSurface(weight: primaryPlan == nil ? .tertiary : .secondary, cornerRadius: 18)
     }
 
     @ViewBuilder
@@ -499,6 +589,43 @@ struct PlannerView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
                 .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        Button {
+                            selectedKindFilter = nil
+                            AppHaptics.selection()
+                        } label: {
+                            Label("全部类型", systemImage: "square.grid.2x2")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(
+                            weight: selectedKindFilter == nil ? .secondary : .tertiary,
+                            cornerRadius: HomeMetrics.pillRadius
+                        )
+
+                        ForEach(OutfitPlanKind.allCases) { kind in
+                            Button {
+                                selectedKindFilter = kind
+                                AppHaptics.selection()
+                            } label: {
+                                Label(kind.title, systemImage: kind.symbolName)
+                                    .font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(HomePressableButtonStyle())
+                            .homeCardSurface(
+                                weight: selectedKindFilter == kind ? .secondary : .tertiary,
+                                cornerRadius: HomeMetrics.pillRadius
+                            )
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -604,7 +731,7 @@ struct PlannerView: View {
     private var visiblePlans: [OutfitPlan] {
         sortedPlans(
             scopedPlans.filter { plan in
-                matchesFocusFilter(plan) && matchesSearch(plan)
+                matchesKindFilter(plan) && matchesFocusFilter(plan) && matchesSearch(plan)
             }
         )
     }
@@ -670,6 +797,31 @@ struct PlannerView: View {
         ["一", "二", "三", "四", "五", "六", "日"]
     }
 
+    private var weekOverviewDays: [WeekOverviewDay] {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: .now)
+        let groupedPlans = Dictionary(grouping: plans) { plan in
+            calendar.startOfDay(for: plan.date)
+        }
+
+        return (0..<7).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else {
+                return nil
+            }
+            let dayPlans = sortedPlans(groupedPlans[date] ?? [])
+            return WeekOverviewDay(
+                date: date,
+                plans: dayPlans,
+                isToday: calendar.isDateInToday(date)
+            )
+        }
+    }
+
+    private var weekOverviewSubtitle: String {
+        let arrangedDayCount = weekOverviewDays.filter { !$0.plans.isEmpty }.count
+        return arrangedDayCount == 0 ? "7 天待安排" : "已安排 \(arrangedDayCount) / 7 天"
+    }
+
     private var planListSubtitle: String {
         let scopeText = viewMode == .week ? "未来 7 天" : selectedDay.formatted(.dateTime.month().day().weekday(.abbreviated))
         guard !plans.isEmpty else { return scopeText }
@@ -715,7 +867,7 @@ struct PlannerView: View {
     }
 
     private var hasActivePlanFilters: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedFocusFilter != .all
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedFocusFilter != .all || selectedKindFilter != nil
     }
 
     private var plansExportText: String {
@@ -805,8 +957,14 @@ struct PlannerView: View {
             .frame(width: 52)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(plan.title)
-                    .font(.headline)
+                HStack(spacing: 6) {
+                    Label(plan.planKind.title, systemImage: plan.planKind.symbolName)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Text(plan.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
                 Text(plan.linkedOutfit?.title ?? plan.outfitSummary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -825,7 +983,7 @@ struct PlannerView: View {
 
             Spacer()
 
-            Image(systemName: plan.reminderEnabled ? "bell.badge.fill" : "calendar")
+            Image(systemName: plan.reminderEnabled ? "bell.badge.fill" : plan.planKind.symbolName)
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -878,6 +1036,7 @@ struct PlannerView: View {
     private func clearPlanFilters() {
         searchText = ""
         selectedFocusFilter = .all
+        selectedKindFilter = nil
         AppHaptics.selection()
     }
 
@@ -921,6 +1080,7 @@ struct PlannerView: View {
 
         return PlanCreationDraft(
             selectedOutfitID: defaultTemplateOutfitID,
+            planKind: .daily,
             title: "新的穿搭计划",
             occasion: "穿搭安排",
             notes: "",
@@ -979,11 +1139,18 @@ struct PlannerView: View {
             }
         }
 
+    private func matchesKindFilter(_ plan: OutfitPlan) -> Bool {
+        guard let selectedKindFilter else { return true }
+        return plan.planKind == selectedKindFilter
+    }
+
     private func matchesSearch(_ plan: OutfitPlan) -> Bool {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return true }
 
         let searchableText = [
+            plan.planKind.title,
+            plan.planKind.listTitle,
             plan.title,
             plan.occasion,
             plan.notes,
@@ -1032,6 +1199,14 @@ private extension PlannerView {
         let date: Date
         let isInDisplayedMonth: Bool
         let plans: [OutfitPlan]
+
+        var id: Date { date }
+    }
+
+    struct WeekOverviewDay: Identifiable {
+        let date: Date
+        let plans: [OutfitPlan]
+        let isToday: Bool
 
         var id: Date { date }
     }

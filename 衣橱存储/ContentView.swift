@@ -624,14 +624,83 @@ struct ContentView: View {
 
     private var homePlanCalendarSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "计划日历", subtitle: homePlanCalendarSubtitle)
+            sectionHeader(title: "未来穿搭", subtitle: homePlanCalendarSubtitle)
 
             VStack(alignment: .leading, spacing: 14) {
-                homeCalendarStrip
+                if let summary = primaryUpcomingPlanSummary {
+                    NavigationLink {
+                        PlanDetailView(plan: summary.plan)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Label(summary.plan.planKind.homeTitle, systemImage: summary.plan.planKind.symbolName)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(summary.plan.title)
+                                        .font(.headline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Text(summary.plan.date.formatted(.dateTime.month().day().weekday(.wide).locale(Locale(identifier: "zh_Hans_CN"))))
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
 
-                if viewModel.upcomingPlanSummaries.isEmpty {
+                                Spacer(minLength: 8)
+
+                                Text(daysUntilText(for: summary.plan.date))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                            }
+
+                            if let outfit = summary.plan.linkedOutfit, !outfit.orderedItems.isEmpty {
+                                HStack(spacing: 10) {
+                                    ForEach(Array(outfit.orderedItems.prefix(4)), id: \.id) { item in
+                                        WardrobeItemImageView(item: item, cornerRadius: 14, symbolFont: .caption.weight(.semibold))
+                                            .frame(width: 54, height: 54)
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                            } else {
+                                Text(summary.plan.outfitSummary)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+
+                            HStack {
+                                Text("未来 7 天已安排 \(homePlannedDayCount) / 7 天")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Label("查看计划", systemImage: "arrow.up.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                        .padding(16)
+                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+
+                    homeCalendarStrip
+
+                    Button {
+                        openOOTDWorkspace(.plans)
+                    } label: {
+                        Label("进入计划日历", systemImage: "calendar")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(HomePressableButtonStyle())
+                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                } else {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(viewModel.upcomingPlansEmptyMessage)
+                        Text("未来 7 天还没有安排 OOTD。可以把常用预设放进日历，通勤、约会、旅行和特殊日子都能提前准备。")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
 
@@ -659,28 +728,6 @@ struct ContentView: View {
                             .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
                         }
                     }
-                } else {
-                    VStack(spacing: 10) {
-                        ForEach(Array(viewModel.upcomingPlanSummaries.prefix(2))) { summary in
-                            NavigationLink {
-                                PlanDetailView(plan: summary.plan)
-                            } label: {
-                                upcomingPlanSummaryRow(summary: summary)
-                            }
-                            .buttonStyle(HomePressableButtonStyle())
-                        }
-                    }
-
-                    Button {
-                        openOOTDWorkspace(.plans)
-                    } label: {
-                        Label("查看完整日历", systemImage: "calendar")
-                            .font(.caption.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                    }
-                    .buttonStyle(HomePressableButtonStyle())
-                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
                 }
             }
             .padding(16)
@@ -734,11 +781,18 @@ struct ContentView: View {
     }
 
     private var homePlanCalendarSubtitle: String {
-        let plannedDayCount = homePlanCalendarDays.filter { $0.planCount > 0 }.count
-        if plannedDayCount == 0 {
+        if homePlannedDayCount == 0 {
             return "未来 7 天"
         }
-        return "\(plannedDayCount) 天有安排"
+        return "\(homePlannedDayCount) 天有安排"
+    }
+
+    private var primaryUpcomingPlanSummary: HomeDashboardViewModel.UpcomingPlanSummary? {
+        viewModel.upcomingPlanSummaries.first
+    }
+
+    private var homePlannedDayCount: Int {
+        homePlanCalendarDays.filter { $0.planCount > 0 }.count
     }
 
     private var homePlanCalendarDays: [HomePlanCalendarDay] {
@@ -766,6 +820,21 @@ struct ContentView: View {
 
     private var currentRecommendationTemperature: Int? {
         viewModel.weather?.temperature
+    }
+
+    private func daysUntilText(for date: Date) -> String {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let target = calendar.startOfDay(for: date)
+        let dayCount = calendar.dateComponents([.day], from: today, to: target).day ?? 0
+
+        if dayCount <= 0 {
+            return "今天"
+        }
+        if dayCount == 1 {
+            return "明天"
+        }
+        return "还有 \(dayCount) 天"
     }
 
     private var weatherSourceLabel: String {

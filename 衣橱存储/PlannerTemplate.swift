@@ -4,6 +4,7 @@ import SwiftData
 struct PlanCreationDraft: Identifiable {
     let id = UUID()
     var selectedOutfitID: PersistentIdentifier?
+    var planKind: OutfitPlanKind
     var title: String
     var occasion: String
     var notes: String
@@ -19,6 +20,7 @@ struct PlanCreationDraft: Identifiable {
         let reminderTime = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: date) ?? date
         return PlanCreationDraft(
             selectedOutfitID: selectedOutfitID,
+            planKind: .daily,
             title: "新的穿搭计划",
             occasion: "穿搭安排",
             notes: "",
@@ -83,6 +85,7 @@ enum PlannerQuickTemplate: String, CaseIterable, Identifiable {
 
         return PlanCreationDraft(
             selectedOutfitID: selectedOutfitID,
+            planKind: .daily,
             title: title,
             occasion: occasion,
             notes: notes,

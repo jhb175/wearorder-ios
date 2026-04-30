@@ -90,6 +90,7 @@ final class WardrobeItem {
 @Model
 final class OutfitPlan {
     var id: UUID = UUID()
+    var planKindRawValue: String? = OutfitPlanKind.daily.rawValue
     var date: Date = Date.now
     var title: String = ""
     var occasion: String = ""
@@ -103,6 +104,7 @@ final class OutfitPlan {
 
     init(
         id: UUID = UUID(),
+        planKind: OutfitPlanKind = .daily,
         date: Date,
         title: String,
         occasion: String,
@@ -115,6 +117,7 @@ final class OutfitPlan {
         linkedOutfit: OOTDOutfit? = nil
     ) {
         self.id = id
+        self.planKindRawValue = planKind.rawValue
         self.date = date
         self.title = title
         self.occasion = occasion
@@ -125,6 +128,11 @@ final class OutfitPlan {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.linkedOutfit = linkedOutfit
+    }
+
+    var planKind: OutfitPlanKind {
+        get { OutfitPlanKind.normalized(planKindRawValue) }
+        set { planKindRawValue = newValue.rawValue }
     }
 }
 

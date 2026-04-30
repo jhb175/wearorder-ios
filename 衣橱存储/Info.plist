@@ -32,6 +32,10 @@
 	<string>用于获取本地天气预报，并根据天气和温度生成穿搭推荐。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于选择衣物照片并保存到本地衣橱，照片只保存在本机。</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -41,10 +45,6 @@
 	</dict>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
-		<key>UIBackgroundModes</key>
-		<array>
-			<string>remote-notification</string>
-		</array>
 		<key>UILaunchScreen</key>
 		<dict/>
 	<key>UIStatusBarStyle</key>
