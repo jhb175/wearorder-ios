@@ -9,7 +9,8 @@ enum WardrobeImageStoragePreparer {
     nonisolated static func storeImageFilesIfNeeded(
         itemID: UUID,
         imageData: Data?,
-        thumbnailData: Data?
+        thumbnailData: Data?,
+        fileNameTag: String? = nil
     ) throws -> WardrobeStoredImageFiles? {
         guard let imageData else { return nil }
         let resolvedThumbnailData = thumbnailData
@@ -18,7 +19,8 @@ enum WardrobeImageStoragePreparer {
         return try WardrobeImageFileStore.shared.storeImageSet(
             itemID: itemID,
             imageData: imageData,
-            thumbnailData: resolvedThumbnailData
+            thumbnailData: resolvedThumbnailData,
+            fileNameTag: fileNameTag
         )
     }
 }
@@ -58,12 +60,20 @@ final class WardrobeImageFileStore: @unchecked Sendable {
         itemID: UUID,
         imageData: Data,
         thumbnailData: Data,
-        replacing oldFiles: WardrobeStoredImageFiles? = nil
+        replacing oldFiles: WardrobeStoredImageFiles? = nil,
+        fileNameTag: String? = nil
     ) throws -> WardrobeStoredImageFiles {
         try ensureDirectoryExists()
 
-        let imageFileName = "\(itemID.uuidString)-display.jpg"
-        let thumbnailFileName = "\(itemID.uuidString)-thumb.jpg"
+        let fileNameStem: String
+        if let fileNameTag, !fileNameTag.isEmpty {
+            fileNameStem = "\(itemID.uuidString)-\(fileNameTag)"
+        } else {
+            fileNameStem = itemID.uuidString
+        }
+
+        let imageFileName = "\(fileNameStem)-display.jpg"
+        let thumbnailFileName = "\(fileNameStem)-thumb.jpg"
         let imageURL = rootDirectoryURL.appendingPathComponent(imageFileName, isDirectory: false)
         let thumbnailURL = rootDirectoryURL.appendingPathComponent(thumbnailFileName, isDirectory: false)
 

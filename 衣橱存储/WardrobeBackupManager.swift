@@ -30,6 +30,7 @@ struct WardrobeBackupRestoreSummary {
     let updatedPlans: Int
     let plansForNotificationSync: [OutfitPlan]
     let imageFileNamesForCleanup: [String]
+    let imageFileNamesForRollback: [String]
 
     var totalRecordsChanged: Int {
         insertedItems + updatedItems + insertedOutfits + updatedOutfits + insertedPlans + updatedPlans
@@ -47,6 +48,18 @@ struct WardrobeBackupRestoreSummary {
         }
 
         return "已恢复 \(recordText)。提醒已重新同步 \(scheduledNotifications)/\(plansForNotificationSync.count) 条。"
+    }
+}
+
+private struct ItemImageRestoreChange {
+    let oldFileNamesForCleanup: [String]
+    let newFileNamesForRollback: [String]
+}
+
+private extension Optional where Wrapped == WardrobeStoredImageFiles {
+    var fileNames: [String] {
+        guard let self else { return [] }
+        return [self.imageFileName, self.thumbnailFileName]
     }
 }
 
@@ -141,65 +154,77 @@ enum WardrobeBackupManager {
         var insertedPlans = 0
         var updatedPlans = 0
         var imageFileNamesForCleanup: [String] = []
+        var imageFileNamesForRollback: [String] = []
 
-        for record in payload.items {
-            if let item = itemLookup[record.id] {
-                imageFileNamesForCleanup.append(contentsOf: record.apply(to: item))
-                updatedItems += 1
-            } else {
-                let item = record.makeModel()
-                context.insert(item)
-                itemLookup[record.id] = item
-                insertedItems += 1
+        do {
+            for record in payload.items {
+                if let item = itemLookup[record.id] {
+                    let imageChange = try record.apply(to: item)
+                    imageFileNamesForCleanup.append(contentsOf: imageChange.oldFileNamesForCleanup)
+                    imageFileNamesForRollback.append(contentsOf: imageChange.newFileNamesForRollback)
+                    updatedItems += 1
+                } else {
+                    let restoredItem = try record.makeModel()
+                    imageFileNamesForRollback.append(contentsOf: restoredItem.newFileNamesForRollback)
+                    context.insert(restoredItem.item)
+                    itemLookup[record.id] = restoredItem.item
+                    insertedItems += 1
+                }
             }
-        }
 
-        let activeTodayOutfitID = payload.activeTodayOutfitID
+            let activeTodayOutfitID = payload.activeTodayOutfitID
 
-        for record in payload.outfits {
-            let todayState = activeTodayOutfitID.map { $0 == record.id } ?? record.isToday
-            if let outfit = outfitLookup[record.id] {
-                record.apply(to: outfit, itemLookup: itemLookup, isToday: todayState)
-                updatedOutfits += 1
-            } else {
-                let outfit = record.makeModel(itemLookup: itemLookup, isToday: todayState)
-                context.insert(outfit)
-                outfitLookup[record.id] = outfit
-                insertedOutfits += 1
+            for record in payload.outfits {
+                let todayState = activeTodayOutfitID.map { $0 == record.id } ?? record.isToday
+                if let outfit = outfitLookup[record.id] {
+                    record.apply(to: outfit, itemLookup: itemLookup, isToday: todayState)
+                    updatedOutfits += 1
+                } else {
+                    let outfit = record.makeModel(itemLookup: itemLookup, isToday: todayState)
+                    context.insert(outfit)
+                    outfitLookup[record.id] = outfit
+                    insertedOutfits += 1
+                }
             }
-        }
 
-        if let activeTodayOutfitID {
-            for outfit in outfitLookup.values where outfit.id != activeTodayOutfitID {
-                outfit.isToday = false
+            if let activeTodayOutfitID {
+                for outfit in outfitLookup.values where outfit.id != activeTodayOutfitID {
+                    outfit.isToday = false
+                }
             }
-        }
 
-        var importedPlans: [OutfitPlan] = []
-        for record in payload.plans {
-            if let plan = planLookup[record.id] {
-                record.apply(to: plan, outfitLookup: outfitLookup)
-                importedPlans.append(plan)
-                updatedPlans += 1
-            } else {
-                let plan = record.makeModel(outfitLookup: outfitLookup)
-                context.insert(plan)
-                planLookup[record.id] = plan
-                importedPlans.append(plan)
-                insertedPlans += 1
+            var importedPlans: [OutfitPlan] = []
+            for record in payload.plans {
+                if let plan = planLookup[record.id] {
+                    record.apply(to: plan, outfitLookup: outfitLookup)
+                    importedPlans.append(plan)
+                    updatedPlans += 1
+                } else {
+                    let plan = record.makeModel(outfitLookup: outfitLookup)
+                    context.insert(plan)
+                    planLookup[record.id] = plan
+                    importedPlans.append(plan)
+                    insertedPlans += 1
+                }
             }
-        }
 
-        return WardrobeBackupRestoreSummary(
-            insertedItems: insertedItems,
-            updatedItems: updatedItems,
-            insertedOutfits: insertedOutfits,
-            updatedOutfits: updatedOutfits,
-            insertedPlans: insertedPlans,
-            updatedPlans: updatedPlans,
-            plansForNotificationSync: importedPlans,
-            imageFileNamesForCleanup: Array(Set(imageFileNamesForCleanup))
-        )
+            return WardrobeBackupRestoreSummary(
+                insertedItems: insertedItems,
+                updatedItems: updatedItems,
+                insertedOutfits: insertedOutfits,
+                updatedOutfits: updatedOutfits,
+                insertedPlans: insertedPlans,
+                updatedPlans: updatedPlans,
+                plansForNotificationSync: importedPlans,
+                imageFileNamesForCleanup: Array(Set(imageFileNamesForCleanup)),
+                imageFileNamesForRollback: Array(Set(imageFileNamesForRollback))
+            )
+        } catch {
+            for fileName in imageFileNamesForRollback {
+                WardrobeImageFileStore.shared.remove(fileName: fileName)
+            }
+            throw error
+        }
     }
 
     private static func defaultFilename(exportedAt: Date) -> String {
@@ -281,15 +306,19 @@ private struct WardrobeBackupPayload: Codable {
             updatedAt = item.updatedAt
         }
 
-        func makeModel() -> WardrobeItem {
-            WardrobeItem(
+        func makeModel() throws -> (item: WardrobeItem, newFileNamesForRollback: [String]) {
+            let restoredFiles = try restoredImageFiles()
+            let item = WardrobeItem(
                 id: id,
                 name: name,
                 category: category,
                 colorName: colorName,
                 season: season,
                 imageSymbol: imageSymbol,
-                imageData: imageData,
+                imageData: nil,
+                thumbnailData: nil,
+                imageFileName: restoredFiles?.imageFileName,
+                thumbnailFileName: restoredFiles?.thumbnailFileName,
                 styleTagsText: styleTagsText,
                 notes: notes,
                 brand: brand ?? "",
@@ -303,20 +332,22 @@ private struct WardrobeBackupPayload: Codable {
                 createdAt: createdAt,
                 updatedAt: updatedAt
             )
+            return (item, restoredFiles.fileNames)
         }
 
-        func apply(to item: WardrobeItem) -> [String] {
+        func apply(to item: WardrobeItem) throws -> ItemImageRestoreChange {
             let oldImageFileNames = [item.imageFileName, item.thumbnailFileName].compactMap { $0 }
+            let restoredFiles = try restoredImageFiles()
 
             item.name = name
             item.category = category
             item.colorName = colorName
             item.season = season
             item.imageSymbol = imageSymbol
-            item.imageFileName = nil
-            item.thumbnailFileName = nil
-            item.imageData = imageData
-            item.thumbnailData = imageData.flatMap { ImageDataOptimizer.thumbnailJPEGData(from: $0) }
+            item.imageFileName = restoredFiles?.imageFileName
+            item.thumbnailFileName = restoredFiles?.thumbnailFileName
+            item.imageData = nil
+            item.thumbnailData = nil
             item.styleTagsText = styleTagsText
             item.notes = notes
             item.brand = normalizedOptional(brand)
@@ -330,12 +361,24 @@ private struct WardrobeBackupPayload: Codable {
             item.createdAt = createdAt
             item.updatedAt = updatedAt
 
-            return oldImageFileNames
+            return ItemImageRestoreChange(
+                oldFileNamesForCleanup: oldImageFileNames,
+                newFileNamesForRollback: restoredFiles.fileNames
+            )
         }
 
         private func normalizedOptional(_ text: String?) -> String? {
             let trimmed = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
+        }
+
+        private func restoredImageFiles() throws -> WardrobeStoredImageFiles? {
+            try WardrobeImageStoragePreparer.storeImageFilesIfNeeded(
+                itemID: id,
+                imageData: imageData,
+                thumbnailData: nil,
+                fileNameTag: "restore-\(UUID().uuidString)"
+            )
         }
     }
 

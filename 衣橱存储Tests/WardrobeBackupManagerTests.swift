@@ -85,7 +85,11 @@ final class WardrobeBackupManagerTests: XCTestCase {
         let restoredPlan = try XCTUnwrap(restoredPlans.first)
 
         XCTAssertEqual(restoredItems.count, 2)
-        XCTAssertEqual(restoredTop.imageData, Data([1, 2, 3]))
+        XCTAssertNil(restoredTop.imageData)
+        XCTAssertNil(restoredTop.thumbnailData)
+        XCTAssertNotNil(restoredTop.imageFileName)
+        XCTAssertNotNil(restoredTop.thumbnailFileName)
+        XCTAssertEqual(restoredTop.displayImageData, Data([1, 2, 3]))
         XCTAssertEqual(restoredTop.trimmedBrand, "Daily Tee")
         XCTAssertEqual(restoredTop.trimmedSize, "M")
         XCTAssertEqual(restoredTop.purchasePrice, 89)
@@ -203,9 +207,12 @@ final class WardrobeBackupManagerTests: XCTestCase {
         )
 
         XCTAssertEqual(Set(summary.imageFileNamesForCleanup), ["old-display.jpg", "old-thumb.jpg"])
-        XCTAssertNil(existingItem.imageFileName)
-        XCTAssertNil(existingItem.thumbnailFileName)
-        XCTAssertEqual(existingItem.imageData, Data([9, 8, 7]))
+        XCTAssertNotNil(existingItem.imageFileName)
+        XCTAssertNotNil(existingItem.thumbnailFileName)
+        XCTAssertEqual(Set(summary.imageFileNamesForRollback), Set([existingItem.imageFileName, existingItem.thumbnailFileName].compactMap { $0 }))
+        XCTAssertNil(existingItem.imageData)
+        XCTAssertNil(existingItem.thumbnailData)
+        XCTAssertEqual(existingItem.displayImageData, Data([9, 8, 7]))
     }
 
     private func makeContainer() throws -> ModelContainer {

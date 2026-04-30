@@ -12,6 +12,7 @@ struct WardrobeSettingsView: View {
     @Query(sort: \OutfitPlan.date) private var plans: [OutfitPlan]
     @AppStorage(WardrobeOnboardingState.storageKey) private var hasSeenOnboarding = false
     @AppStorage(AppLanguage.storageKey) private var appLanguageRawValue = AppLanguage.chinese.rawValue
+    @AppStorage(WardrobePersistentStore.cloudKitFallbackFlagKey) private var isUsingLocalCloudKitFallback = false
     @State private var showsBackupExporter = false
     @State private var showsBackupImporter = false
     @State private var showsOnboarding = false
@@ -474,6 +475,14 @@ struct WardrobeSettingsView: View {
             )
             releaseEmailRow
 
+            if isUsingLocalCloudKitFallback {
+                settingsActionRow(
+                    title: "iCloud 同步暂不可用",
+                    subtitle: "当前已自动切换到本地存储，衣橱可继续使用；请检查 Apple ID、iCloud 和 CloudKit 配置后重启 App。",
+                    systemImage: "icloud.slash.fill"
+                )
+            }
+
             settingsActionRow(
                 title: "本地隐私承诺",
                 subtitle: "Apple ID 账号只保存在本机 Keychain，不接入广告追踪，不上传衣橱数据",
@@ -628,6 +637,7 @@ struct WardrobeSettingsView: View {
 
     @MainActor
     private func restoreBackup(from url: URL) async {
+        var restoredImageFileNamesForRollback: [String] = []
         do {
             let hasSecurityScope = url.startAccessingSecurityScopedResource()
             defer {
@@ -644,6 +654,7 @@ struct WardrobeSettingsView: View {
                 existingOutfits: outfits,
                 existingPlans: plans
             )
+            restoredImageFileNamesForRollback = summary.imageFileNamesForRollback
             try modelContext.save()
             for fileName in summary.imageFileNamesForCleanup {
                 WardrobeImageFileStore.shared.remove(fileName: fileName)
@@ -660,6 +671,9 @@ struct WardrobeSettingsView: View {
                 systemImage: "externaldrive.badge.checkmark"
             )
         } catch {
+            for fileName in restoredImageFileNamesForRollback {
+                WardrobeImageFileStore.shared.remove(fileName: fileName)
+            }
             modelContext.rollback()
             feedback = ActionFeedbackState(
                 title: "备份恢复失败",

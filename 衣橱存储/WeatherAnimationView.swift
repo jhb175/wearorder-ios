@@ -4,7 +4,7 @@ struct WeatherAnimationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let kind: HomeDashboardViewModel.WeatherKind
-    var isActive: Bool = true
+    var isActive: Bool = false
 
     var body: some View {
         Group {
@@ -12,12 +12,12 @@ struct WeatherAnimationView: View {
                 TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
                     weatherCanvas(time: timeline.date.timeIntervalSinceReferenceDate, animated: true)
                 }
+                .compositingGroup()
+                .drawingGroup()
             } else {
                 weatherCanvas(time: 0, animated: false)
             }
         }
-        .compositingGroup()
-        .drawingGroup()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

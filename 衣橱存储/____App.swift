@@ -17,6 +17,7 @@ struct YiChuCunChuApp: App {
 enum WardrobePersistentStore {
     static let cloudKitContainerIdentifier = "iCloud.com.ramsey.wearorder"
     static let disableCloudKitEnvironmentKey = "WEARORDER_DISABLE_CLOUDKIT"
+    static let cloudKitFallbackFlagKey = "wearorder.cloudkit.localFallbackActive"
 
     static let schema = Schema([
         WardrobeItem.self,
@@ -28,9 +29,25 @@ enum WardrobePersistentStore {
         let configuration = makeConfiguration()
 
         do {
-            return try ModelContainer(for: schema, configurations: [configuration])
+            let container = try ModelContainer(for: schema, configurations: [configuration])
+            UserDefaults.standard.set(false, forKey: cloudKitFallbackFlagKey)
+            return container
         } catch {
-            fatalError("Failed to create CloudKit-backed SwiftData container: \(error)")
+            guard shouldUseCloudKit else {
+                fatalError("Failed to create local SwiftData container: \(error)")
+            }
+
+            do {
+                let fallbackContainer = try ModelContainer(
+                    for: schema,
+                    configurations: [ModelConfiguration(schema: schema)]
+                )
+                UserDefaults.standard.set(true, forKey: cloudKitFallbackFlagKey)
+                debugPrint("CloudKit SwiftData container unavailable; using local fallback store. \(error)")
+                return fallbackContainer
+            } catch {
+                fatalError("Failed to create local SwiftData fallback container: \(error)")
+            }
         }
     }()
 
