@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import OSLog
 import WeatherKit
 
 final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
@@ -13,6 +14,7 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
         case invalidCityName
         case cityNotFound(String)
         case cityLookupUnavailable(String)
+        case weatherKitAccessDenied
         case weatherKitUnavailable
 
         var userMessage: String {
@@ -35,8 +37,10 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
                 "没有找到“\(cityName)”的天气预报，请检查城市名称后重试。"
             case .cityLookupUnavailable(let cityName):
                 "暂时无法解析“\(cityName)”的位置，请稍后重试或换一个更明确的城市名称。"
+            case .weatherKitAccessDenied:
+                "Apple Weather 暂时拒绝了天气请求。请确认已安装最新 TestFlight 构建；如果刚开启 WeatherKit，请重新 Archive 上传后再安装。"
             case .weatherKitUnavailable:
-                "WeatherKit 尚未配置完成，请在 Apple Developer 后台和 Xcode Capability 中启用 WeatherKit。"
+                "Apple Weather 暂时不可用，请稍后重试。"
             }
         }
     }
@@ -137,14 +141,25 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
 
 enum WeatherForecastErrorClassifier {
     static func weatherKitError(from error: Error) -> WeatherForecastService.ForecastError {
+        WeatherForecastDiagnostics.logWeatherKitError(error, context: "forecast")
+
+        if let weatherError = error as? WeatherError {
+            switch weatherError {
+            case .permissionDenied:
+                return .weatherKitAccessDenied
+            default:
+                break
+            }
+        }
+
         if let urlError = error as? URLError,
            networkURLErrorCodes.contains(urlError.code) {
             return .networkUnavailable
         }
 
         let nsError = error as NSError
-        if isWeatherKitConfigurationError(nsError) {
-            return .weatherKitUnavailable
+        if isWeatherKitAccessDenied(nsError) {
+            return .weatherKitAccessDenied
         }
 
         if isNetworkLikeError(nsError) {
@@ -194,7 +209,7 @@ enum WeatherForecastErrorClassifier {
         return networkURLErrorCodes.contains(URLError.Code(rawValue: error.code))
     }
 
-    private static func isWeatherKitConfigurationError(_ error: NSError) -> Bool {
+    private static func isWeatherKitAccessDenied(_ error: NSError) -> Bool {
         let diagnosticText = [
             error.domain,
             error.localizedDescription,
@@ -203,12 +218,24 @@ enum WeatherForecastErrorClassifier {
             .joined(separator: " ")
             .lowercased()
 
-        return diagnosticText.contains("entitlement")
-            || diagnosticText.contains("permission")
-            || diagnosticText.contains("denied")
-            || diagnosticText.contains("unauthorized")
+        let isWeatherRelated = diagnosticText.contains("weatherkit")
+            || diagnosticText.contains("weatherdaemon")
+            || diagnosticText.contains("com.apple.weather")
+            || diagnosticText.contains("com.apple.developer.weatherkit")
+            || error.domain.lowercased().contains("weather")
+
+        let hasCredentialSignal = diagnosticText.contains("entitlement")
+            || diagnosticText.contains("com.apple.developer.weatherkit")
             || diagnosticText.contains("jwt")
             || diagnosticText.contains("authenticator")
+
+        let hasAccessDeniedSignal = diagnosticText.contains("permissiondenied")
+            || diagnosticText.contains("permission denied")
+            || diagnosticText.contains("unauthorized")
+            || diagnosticText.contains("not authorized")
+            || diagnosticText.contains("forbidden")
+
+        return hasCredentialSignal || (isWeatherRelated && hasAccessDeniedSignal)
     }
 
     private static func coreLocationCode(from error: Error) -> CLError.Code? {
@@ -219,6 +246,20 @@ enum WeatherForecastErrorClassifier {
         let nsError = error as NSError
         guard nsError.domain == kCLErrorDomain else { return nil }
         return CLError.Code(rawValue: nsError.code)
+    }
+}
+
+private enum WeatherForecastDiagnostics {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.ramsey.wearorder",
+        category: "WeatherForecast"
+    )
+
+    static func logWeatherKitError(_ error: Error, context: String) {
+        let nsError = error as NSError
+        logger.error(
+            "WeatherKit request failed context=\(context, privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .public)"
+        )
     }
 }
 
@@ -234,7 +275,8 @@ private enum WeatherKitForecastClient {
         } catch let error as WeatherForecastService.ForecastError {
             throw error
         } catch WeatherError.permissionDenied {
-            throw WeatherForecastService.ForecastError.weatherKitUnavailable
+            WeatherForecastDiagnostics.logWeatherKitError(WeatherError.permissionDenied, context: "permissionDenied")
+            throw WeatherForecastService.ForecastError.weatherKitAccessDenied
         } catch {
             throw WeatherForecastErrorClassifier.weatherKitError(from: error)
         }

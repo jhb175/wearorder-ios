@@ -91,7 +91,7 @@ xcodebuild test \
 - 外部测试审核通过后，测试员通过 TestFlight 邀请安装。
 - 每次重新上传都要增加 Build Number；Marketing Version 可以先保持 `1.0.0`。
 - WeatherKit 后台开通后，必须重新 Archive 并安装新的 TestFlight build；旧包不会自动获得新的 entitlement。
-- 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`WeatherKit 尚未配置完成` 通常是 App ID、Capability 或 provisioning profile 没刷新。
+- 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`Apple Weather 暂时拒绝了天气请求` 通常是 App ID、Capability 或 provisioning profile 没刷新，或安装的仍是旧 TestFlight 包。
 
 ## 2026-04-29 天气与测试记录
 
@@ -113,7 +113,7 @@ xcodebuild test \
 
 ## 2026-04-29 换机打包记录
 
-- 当前准备给 TestFlight 继续测试的版本是 `1.0.0 (7)`。
+- 当前准备给 TestFlight 继续测试的版本是 `1.0.0 (8)`。
 - 最新提交：
   - `f8238ee Bump build number to 5`
   - `03ad549 Document TestFlight weather handoff`
@@ -121,7 +121,7 @@ xcodebuild test \
   - `7e23360 Improve global weather city resolution`
 - 已确认 Xcode build settings：
   - `MARKETING_VERSION = 1.0.0`
-  - `CURRENT_PROJECT_VERSION = 7`
+  - `CURRENT_PROJECT_VERSION = 8`
   - `CODE_SIGN_STYLE = Automatic`
   - 不要在 Build Settings 里手动固定 `CODE_SIGN_IDENTITY = Apple Distribution`；否则 Xcode 自动签名会和手动分发签名冲突。
 - 当前仓库已推送到 GitHub：`https://github.com/jhb175/wearorder-ios`
@@ -145,10 +145,11 @@ git status
   - Team 选择付费 Apple Developer Program 团队。
   - Bundle Identifier 是 `com.ramsey.wearorder`。
   - Signing & Capabilities 中有 `Sign in with Apple`、`WeatherKit`。
-  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (8)`。
+  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (9)`。
 - WeatherKit 第 6 版失败后的处理：App ID 后台已经开启 WeatherKit，归档包也包含 `com.apple.developer.weatherkit`。第 7 版保留自动签名，避免 `Automatically manage signing` 和手动 `Apple Distribution` 冲突；重新 Archive 时让 Xcode 生成/选择包含 WeatherKit 的 provisioning profile。
 - 2026-04-29 21:02 已验证 Release generic iOS build 成功，构建日志里包含 `com.apple.developer.weatherkit = 1`。如果 Xcode 仍报签名问题，先 Clean Build Folder，再重新 Archive。
-- 如果 WeatherKit 真机仍提示不可用，先确认安装的是 `1.0.0 (7)` 或更新版本，并在 Organizer 上传后重新安装 TestFlight 包；旧 TestFlight 包不会自动获得新签名能力。
+- 第 8 版修正 WeatherKit 错误分类：明确识别 `WeatherError.permissionDenied`，避免把所有天气权限拒绝误报成“尚未配置完成”。
+- 如果 WeatherKit 真机仍提示不可用，先确认安装的是 `1.0.0 (8)` 或更新版本，并在 Organizer 上传后重新安装 TestFlight 包；旧 TestFlight 包不会自动获得新签名能力。
 
 ## 下一步优先级
 

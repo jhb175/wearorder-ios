@@ -1,4 +1,5 @@
 import CoreLocation
+import WeatherKit
 import XCTest
 @testable import 衣橱存储
 
@@ -52,6 +53,13 @@ final class WeatherForecastServiceTests: XCTestCase {
         XCTAssertEqual(
             WeatherForecastErrorClassifier.weatherKitError(from: error),
             .networkUnavailable
+        )
+    }
+
+    func testWeatherKitPermissionDeniedDoesNotShowGenericSetupFailure() {
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.weatherKitError(from: WeatherError.permissionDenied),
+            .weatherKitAccessDenied
         )
     }
 
