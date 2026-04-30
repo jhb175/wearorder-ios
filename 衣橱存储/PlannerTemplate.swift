@@ -36,9 +36,11 @@ struct PlanCreationDraft: Identifiable {
 
     static func arrangingPreset(
         _ outfit: OOTDOutfit,
+        date requestedDate: Date? = nil,
         calendar: Calendar = .current
     ) -> PlanCreationDraft {
-        let date = calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
+        let fallbackDate = calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
+        let date = requestedDate ?? fallbackDate
         let reminderTime = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: date) ?? date
         let planKind = inferredPlanKind(for: outfit)
         let occasion = inferredOccasion(for: outfit, planKind: planKind)
@@ -53,7 +55,7 @@ struct PlanCreationDraft: Identifiable {
             weatherCityName: "",
             notes: "从 OOTD 预设快速安排。",
             date: date,
-            reminderEnabled: true,
+            reminderEnabled: reminderTime > .now,
             reminderTime: reminderTime
         )
     }
@@ -82,6 +84,50 @@ struct PlanCreationDraft: Identifiable {
             return firstTag
         }
         return planKind.defaultOccasion
+    }
+}
+
+struct PlannerPresetQuickApplySnapshot {
+    let totalPresetCount: Int
+    let incompletePresetCount: Int
+    let schedulableOutfits: [OOTDOutfit]
+
+    static func make(
+        outfits: [OOTDOutfit],
+        limit: Int = 8
+    ) -> PlannerPresetQuickApplySnapshot {
+        let sortedOutfits = outfits.sorted { lhs, rhs in
+            if lhs.isToday != rhs.isToday {
+                return lhs.isToday
+            }
+            if lhs.createdAt == rhs.createdAt {
+                return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+            }
+            return lhs.createdAt > rhs.createdAt
+        }
+        let completeOutfits = sortedOutfits.filter { !$0.isIncomplete }
+        return PlannerPresetQuickApplySnapshot(
+            totalPresetCount: outfits.count,
+            incompletePresetCount: outfits.count - completeOutfits.count,
+            schedulableOutfits: Array(completeOutfits.prefix(limit))
+        )
+    }
+
+    var hasSchedulablePresets: Bool {
+        !schedulableOutfits.isEmpty
+    }
+
+    var subtitle: String {
+        if totalPresetCount == 0 {
+            return "先保存 OOTD"
+        }
+        if schedulableOutfits.isEmpty {
+            return "预设待补全"
+        }
+        if incompletePresetCount > 0 {
+            return "\(schedulableOutfits.count) 套可用 · \(incompletePresetCount) 套待补"
+        }
+        return "\(schedulableOutfits.count) 套可直接安排"
     }
 }
 

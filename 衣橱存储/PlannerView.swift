@@ -90,6 +90,7 @@ struct PlannerView: View {
                 headerSection
                 plannerCalendarSection
                 weeklyOutfitOverviewSection
+                presetQuickApplySection
                 plannerReminderStatusSection
                 quickTemplateSection
                 planToolsSection
@@ -211,6 +212,53 @@ struct PlannerView: View {
                 }
                 .buttonStyle(HomePressableButtonStyle())
                 .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.18))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var presetQuickApplySection: some View {
+        if !outfits.isEmpty {
+            let snapshot = presetQuickApplySnapshot
+            VStack(alignment: .leading, spacing: 14) {
+                sectionHeader(title: "快速套用预设", subtitle: quickApplyDateSubtitle)
+
+                if snapshot.hasSchedulablePresets {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(snapshot.schedulableOutfits, id: \.id) { outfit in
+                                presetQuickApplyCard(outfit)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+
+                    if snapshot.incompletePresetCount > 0 {
+                        Label("\(snapshot.incompletePresetCount) 套预设缺少关键单品，补齐后可用于快速排期。", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .homeCardSurface(weight: .tertiary, cornerRadius: 16)
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "wand.and.stars")
+                            .font(.headline.weight(.semibold))
+                            .frame(width: 36, height: 36)
+                            .homeCardSurface(weight: .tertiary, cornerRadius: 18)
+
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("预设还不能直接排期")
+                                .font(.subheadline.weight(.semibold))
+                            Text("先补齐上装、下装或一件式穿搭，之后就能一键安排到未来日期。")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(14)
+                    .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+                }
             }
         }
     }
@@ -912,6 +960,22 @@ struct PlannerView: View {
         return "先保存 OOTD"
     }
 
+    private var presetQuickApplySnapshot: PlannerPresetQuickApplySnapshot {
+        PlannerPresetQuickApplySnapshot.make(outfits: outfits, limit: 8)
+    }
+
+    private var quickApplyTargetDate: Date {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let selected = calendar.startOfDay(for: selectedDay)
+        return selected >= today ? selected : (calendar.date(byAdding: .day, value: 1, to: today) ?? today)
+    }
+
+    private var quickApplyDateSubtitle: String {
+        let dateText = quickApplyTargetDate.formatted(.dateTime.month().day().weekday(.abbreviated).locale(Locale(identifier: "zh_Hans_CN")))
+        return "\(presetQuickApplySnapshot.subtitle) · 排到 \(dateText)"
+    }
+
     private var background: some View {
         AppAdaptiveBackground()
     }
@@ -945,6 +1009,70 @@ struct PlannerView: View {
         }
         .padding(14)
         .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private func presetQuickApplyCard(_ outfit: OOTDOutfit) -> some View {
+        Button {
+            activePlanDraft = PlanCreationDraft.arrangingPreset(outfit, date: quickApplyTargetDate)
+            AppHaptics.selection()
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                presetQuickApplyPreview(outfit)
+                    .frame(height: 86)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(outfit.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(outfit.summaryText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 6) {
+                    Label("安排", systemImage: "calendar.badge.plus")
+                        .font(.caption.weight(.semibold))
+                    Spacer(minLength: 8)
+                    Text(quickApplyTargetDate.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_Hans_CN"))))
+                        .font(.caption.monospacedDigit().weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 168, alignment: .leading)
+            .padding(12)
+        }
+        .buttonStyle(HomePressableButtonStyle())
+        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+        .accessibilityLabel("把 \(outfit.title) 安排到 \(quickApplyTargetDate.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_Hans_CN"))))")
+    }
+
+    private func presetQuickApplyPreview(_ outfit: OOTDOutfit) -> some View {
+        let previewItems = Array(outfit.orderedItems.prefix(4))
+
+        return ZStack {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.2))
+
+            if previewItems.isEmpty {
+                Image(systemName: "square.grid.2x2")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: -8) {
+                    ForEach(previewItems, id: \.id) { item in
+                        WardrobeItemImageView(item: item, cornerRadius: 16, symbolFont: .caption.weight(.bold))
+                            .frame(width: 58, height: 70)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.72), lineWidth: 1)
+                            }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+            }
+        }
     }
 
     private func sectionHeader(title: String, subtitle: String) -> some View {

@@ -73,6 +73,54 @@ final class OOTDLibrarySnapshotTests: XCTestCase {
         XCTAssertEqual(PlanCreationDraft.arrangingPreset(travelOutfit).planKind, .trip)
     }
 
+    func testPlanDraftFromPresetCanTargetSelectedDate() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        let outfit = OOTDOutfit(title: "周三预设", notes: "", presetTagsText: "通勤")
+        let targetDate = Date(timeIntervalSince1970: 1_900_000_000)
+
+        let draft = PlanCreationDraft.arrangingPreset(outfit, date: targetDate, calendar: calendar)
+
+        XCTAssertEqual(calendar.startOfDay(for: draft.date), calendar.startOfDay(for: targetDate))
+        XCTAssertEqual(draft.selectedOutfitID, outfit.persistentModelID)
+        XCTAssertTrue(draft.reminderEnabled)
+    }
+
+    func testPresetQuickApplySnapshotPrioritizesCompleteRecentPresets() {
+        let top = makeItem(name: "白衬衫", category: "上装")
+        let bottom = makeItem(name: "长裤", category: "下装")
+        let recentComplete = OOTDOutfit(
+            title: "最近完整",
+            notes: "",
+            createdAt: Date(timeIntervalSince1970: 1_900_000_000),
+            topItem: top,
+            bottomItem: bottom
+        )
+        let olderComplete = OOTDOutfit(
+            title: "较早完整",
+            notes: "",
+            createdAt: Date(timeIntervalSince1970: 1_800_000_000),
+            topItem: top,
+            bottomItem: bottom
+        )
+        let incomplete = OOTDOutfit(
+            title: "缺下装",
+            notes: "",
+            createdAt: Date(timeIntervalSince1970: 2_000_000_000),
+            topItem: top
+        )
+
+        let snapshot = PlannerPresetQuickApplySnapshot.make(
+            outfits: [olderComplete, incomplete, recentComplete],
+            limit: 1
+        )
+
+        XCTAssertEqual(snapshot.totalPresetCount, 3)
+        XCTAssertEqual(snapshot.incompletePresetCount, 1)
+        XCTAssertEqual(snapshot.schedulableOutfits.map(\.title), ["最近完整"])
+        XCTAssertTrue(snapshot.subtitle.contains("待补"))
+    }
+
     private func makeItem(name: String, category: String) -> WardrobeItem {
         WardrobeItem(
             name: name,
