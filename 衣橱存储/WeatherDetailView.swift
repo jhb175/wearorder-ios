@@ -21,6 +21,8 @@ struct WeatherDetailView: View {
                     dailyForecastSection
                     weatherDetailsGrid
                     WeatherAttributionBlock(weather: displayWeather)
+                        .padding(.top, 2)
+                        .padding(.bottom, 8)
                 } else {
                     emptyForecastState
                 }
@@ -268,7 +270,9 @@ private struct WeatherAttributionBlock: View {
     let weather: HomeDashboardViewModel.WeatherSnapshot
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 5) {
+            Text("天气数据由")
+
             AsyncImage(url: markURL) { phase in
                 switch phase {
                 case .success(let image):
@@ -277,24 +281,21 @@ private struct WeatherAttributionBlock: View {
                         .scaledToFit()
                 default:
                     Text(weather.providerName)
-                        .font(.caption.weight(.semibold))
                 }
             }
-            .frame(maxWidth: 148, maxHeight: 20, alignment: .leading)
-
-            Spacer(minLength: 8)
+            .frame(maxWidth: 96, maxHeight: 13, alignment: .leading)
 
             if let legalURL = weather.providerLegalURL {
+                Text("提供 ·")
                 Link("数据来源", destination: legalURL)
-                    .font(.caption.weight(.semibold))
             } else {
-                Text("天气数据")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                Text("提供")
             }
         }
-        .padding(.horizontal, 12)
+        .font(.caption2.weight(.medium))
         .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityLabel("天气数据由 \(weather.providerName) 提供。")
     }
 
     private var markURL: URL? {

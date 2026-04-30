@@ -155,8 +155,16 @@ if ! grep -q 'cloudKitDatabase: .private(cloudKitContainerIdentifier)' "衣橱�
   issue "SwiftData container is not configured for private CloudKit sync"
 fi
 
-if ! grep -q 'WeatherCardAttributionBadge' "衣橱存储/WeatherCardView.swift"; then
-  issue "home weather card does not show WeatherKit attribution"
+if grep -q 'WeatherCardAttributionBadge' "衣橱存储/WeatherCardView.swift"; then
+  issue "home weather card still contains the old obstructive WeatherKit attribution badge"
+fi
+
+if ! grep -q 'WeatherAttributionBlock' "衣橱存储/WeatherDetailView.swift"; then
+  issue "weather detail does not show WeatherKit attribution"
+fi
+
+if ! grep -q 'Link("数据来源"' "衣橱存储/WeatherDetailView.swift"; then
+  issue "weather detail does not expose WeatherKit legal attribution link"
 fi
 
 RISKY_ASSETS="$(

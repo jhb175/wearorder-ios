@@ -204,6 +204,7 @@ struct ContentView: View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 26) {
+                    homeHeader
                     weatherSection
                     welcomeSection
                     if showsOnboardingSection {
@@ -217,28 +218,42 @@ struct ContentView: View {
                 .padding(.bottom, 148)
             }
             .background(atmosphericBackground)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(AppReleaseInfo.appName)
-                        .font(.headline.weight(.semibold))
-                }
-
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        openOOTDWorkspace(.plans)
-                        globalFeedback = ActionFeedbackState(
-                            title: viewModel.upcomingPlanSummaries.isEmpty ? "暂无近期提醒" : "查看近期计划",
-                            message: viewModel.upcomingPlanSummaries.isEmpty ? "创建计划并开启提醒后，这里会带你回到 OOTD 的计划页查看。" : "已切换到 OOTD 计划页，你可以查看或调整提醒。",
-                            systemImage: viewModel.upcomingPlanSummaries.isEmpty ? "bell.slash" : "bell.badge.fill"
-                        )
-                    } label: {
-                        Image(systemName: "bell.badge")
-                    }
-                    .buttonStyle(HomeIconButtonStyle())
-                    .accessibilityLabel("查看近期计划")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
+    }
+
+    private var homeHeader: some View {
+        HStack(spacing: 12) {
+            Color.clear
+                .frame(width: 56, height: 50)
+                .accessibilityHidden(true)
+
+            Spacer(minLength: 0)
+
+            Text(AppReleaseInfo.appName)
+                .font(.headline.weight(.semibold))
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+
+            Button {
+                openUpcomingPlansFromHome()
+            } label: {
+                Image(systemName: "bell.badge")
+            }
+            .buttonStyle(HomeIconButtonStyle())
+            .accessibilityLabel("查看近期计划")
+        }
+        .padding(.top, 2)
+    }
+
+    private func openUpcomingPlansFromHome() {
+        openOOTDWorkspace(.plans)
+        globalFeedback = ActionFeedbackState(
+            title: viewModel.upcomingPlanSummaries.isEmpty ? "暂无近期提醒" : "查看近期计划",
+            message: viewModel.upcomingPlanSummaries.isEmpty ? "创建计划并开启提醒后，这里会带你回到 OOTD 的计划页查看。" : "已切换到 OOTD 计划页，你可以查看或调整提醒。",
+            systemImage: viewModel.upcomingPlanSummaries.isEmpty ? "bell.slash" : "bell.badge.fill"
+        )
     }
 
     @ViewBuilder

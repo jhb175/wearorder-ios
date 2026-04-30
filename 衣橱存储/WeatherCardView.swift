@@ -35,19 +35,6 @@ struct WeatherCardView: View {
                     Spacer()
                 }
             }
-
-            if let weather {
-                VStack {
-                    Spacer(minLength: 0)
-                    HStack {
-                        Spacer(minLength: 0)
-                        WeatherCardAttributionBadge(weather: weather)
-                    }
-                    .padding(.trailing, 18)
-                    .padding(.bottom, 16)
-                }
-                .allowsHitTesting(false)
-            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 318)
@@ -312,50 +299,6 @@ struct WeatherCardView: View {
     private var rightRefractionOpacity: Double { displayWeather.kind == .heavyRain || displayWeather.kind == .thunderstorm ? 0.12 : 0.14 }
     private var borderTopOpacity: Double { displayWeather.kind == .thunderstorm ? 0.46 : 0.54 }
     private var borderBottomOpacity: Double { displayWeather.kind == .heavyRain || displayWeather.kind == .thunderstorm ? 0.20 : 0.24 }
-}
-
-private struct WeatherCardAttributionBadge: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let weather: HomeDashboardViewModel.WeatherSnapshot
-
-    var body: some View {
-        HStack(spacing: 6) {
-            AsyncImage(url: markURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                default:
-                    Text(weather.providerName)
-                        .font(.caption2.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                }
-            }
-            .frame(maxWidth: 112, maxHeight: 14, alignment: .leading)
-
-            Text("数据来源")
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
-        }
-        .foregroundStyle(Color.black.opacity(0.62))
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background {
-            Capsule()
-                .fill(Color.white.opacity(0.62))
-                .overlay {
-                    Capsule()
-                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.8)
-                }
-        }
-        .accessibilityLabel("天气数据来源：\(weather.providerName)。点按天气卡查看详细归因。")
-    }
-
-    private var markURL: URL? {
-        colorScheme == .dark ? weather.providerMarkLightURL : weather.providerMarkDarkURL
-    }
 }
 
 private struct WeatherAtmosphereLayer: View {

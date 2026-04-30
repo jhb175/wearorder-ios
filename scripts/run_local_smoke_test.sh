@@ -369,8 +369,15 @@ grep -q '<string>remote-notification</string>' "$INFO_PLIST" \
 grep -q 'cloudKitDatabase: .private(cloudKitContainerIdentifier)' "$APP_DIR/____App.swift" \
   || fail "SwiftData container is not configured for private CloudKit sync"
 
-grep -q 'WeatherCardAttributionBadge' "$APP_DIR/WeatherCardView.swift" \
-  || fail "home weather card does not show WeatherKit attribution"
+if grep -q 'WeatherCardAttributionBadge' "$APP_DIR/WeatherCardView.swift"; then
+  fail "home weather card still contains the old obstructive WeatherKit attribution badge"
+fi
+
+grep -q 'WeatherAttributionBlock' "$APP_DIR/WeatherDetailView.swift" \
+  || fail "weather detail does not show WeatherKit attribution"
+
+grep -q 'Link("数据来源"' "$APP_DIR/WeatherDetailView.swift" \
+  || fail "weather detail does not expose WeatherKit legal attribution link"
 
 if grep -R -q -E 'Open-Meteo|api\.open-meteo|geocoding-api\.open-meteo' "$APP_DIR" "APP_STORE_METADATA.md" "PRIVACY.md" "docs" "APP_STORE_CONNECT_PRIVACY_LABELS.md"; then
   fail "release build still references Open-Meteo"
