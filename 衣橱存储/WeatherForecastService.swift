@@ -38,7 +38,7 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
             case .cityLookupUnavailable(let cityName):
                 "暂时无法解析“\(cityName)”的位置，请稍后重试或换一个更明确的城市名称。"
             case .weatherKitAccessDenied:
-                "Apple Weather 暂时拒绝了天气请求。请确认已安装最新 TestFlight 构建；如果刚开启 WeatherKit，请重新 Archive 上传后再安装。"
+                "Apple Weather 暂时拒绝了天气请求。请确认 App ID 的 App Services 和 App Capabilities 都已启用 WeatherKit，并重新 Archive 最新 TestFlight 构建。"
             case .weatherKitUnavailable:
                 "Apple Weather 暂时不可用，请稍后重试。"
             }
@@ -235,7 +235,10 @@ enum WeatherForecastErrorClassifier {
             || diagnosticText.contains("not authorized")
             || diagnosticText.contains("forbidden")
 
-        return hasCredentialSignal || (isWeatherRelated && hasAccessDeniedSignal)
+        let hasExplicitWeatherKitEntitlementSignal = diagnosticText.contains("com.apple.developer.weatherkit")
+
+        return hasExplicitWeatherKitEntitlementSignal
+            || (isWeatherRelated && (hasCredentialSignal || hasAccessDeniedSignal))
     }
 
     private static func coreLocationCode(from error: Error) -> CLError.Code? {

@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var globalFeedback: ActionFeedbackState?
     @State private var hasStartedLaunchWork = false
     @AppStorage("wardrobeWeatherFallbackCity") private var fallbackWeatherCity = ""
+    @AppStorage("wardrobeWeatherSourceMode") private var weatherSourceModeRawValue = WeatherSourceMode.currentLocation.rawValue
     @State private var showsWeatherCityPicker = false
     private let usesPreviewWeather: Bool
     private let ootdPresetPageSize = 8
@@ -32,6 +33,11 @@ struct ContentView: View {
         case wardrobe
         case ootd
         case settings
+    }
+
+    private enum WeatherSourceMode: String {
+        case currentLocation
+        case city
     }
 
     enum OOTDWorkspaceSection: String, CaseIterable, Hashable {
@@ -146,11 +152,13 @@ struct ContentView: View {
                 savedCity: fallbackWeatherCity,
                 onSave: { cityName in
                     fallbackWeatherCity = cityName
+                    weatherSourceModeRawValue = WeatherSourceMode.city.rawValue
                     Task {
                         await loadWeatherForecast(forCity: cityName)
                     }
                 },
                 onUseCurrentLocation: {
+                    weatherSourceModeRawValue = WeatherSourceMode.currentLocation.rawValue
                     Task {
                         await loadWeatherForecast(requestPermissionIfNeeded: true)
                     }
@@ -844,7 +852,20 @@ struct ContentView: View {
             return
         }
 
-        await loadWeatherForecast(requestPermissionIfNeeded: false)
+        await loadPreferredWeatherForecastOnLaunch()
+    }
+
+    private var preferredWeatherSourceMode: WeatherSourceMode {
+        WeatherSourceMode(rawValue: weatherSourceModeRawValue) ?? .currentLocation
+    }
+
+    private func loadPreferredWeatherForecastOnLaunch() async {
+        let trimmedCity = fallbackWeatherCity.trimmingCharacters(in: .whitespacesAndNewlines)
+        if preferredWeatherSourceMode == .city, !trimmedCity.isEmpty {
+            await loadWeatherForecast(forCity: trimmedCity)
+        } else {
+            await loadWeatherForecast(requestPermissionIfNeeded: false)
+        }
     }
 
     private var coreFlowReadiness: WardrobeCoreFlowReadiness {

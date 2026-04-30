@@ -1,6 +1,6 @@
 # 衣序 / WearOrder 项目交接文档
 
-最后更新：2026-04-29
+最后更新：2026-04-30
 
 这个文件用于在不同 Mac、不同 Codex 会话之间继续开发。它只记录项目状态和工程决策，不记录私人邮箱、Apple ID、证书、密码或聊天原文。
 
@@ -41,9 +41,9 @@ open 衣橱存储.xcodeproj
 
 ## 最近完成的关键修复
 
-- WeatherKit 真机/TestFlight 准备：Xcode Capability 已包含 WeatherKit，代码通过 `WeatherService.shared.weather(for:)` 获取天气，不再使用第三方免费天气端点。
+- WeatherKit 真机/TestFlight 准备：Xcode Capability 已包含 WeatherKit，代码通过 `WeatherService.shared.weather(for:)` 获取天气，不再使用第三方免费天气端点。Apple Developer 后台需要在 App ID 的 `App Services` 和 `Capabilities` 两处都启用 WeatherKit，保存后重新 Archive，新 TestFlight 包才会带上最新 profile。
 - 全球城市天气：城市天气不再默认填上海；支持常见全球城市内置兜底，并对未知城市走系统地理编码。英文重名城市如 `Paris Texas`、`London Ontario` 不会被错误匹配到法国巴黎或英国伦敦。
-- 天气错误分类：WeatherKit 和城市地理编码的网络失败会归类为“网络不可用”；WeatherKit entitlement / provisioning 问题会提示需要在 Apple Developer 和 Xcode Capability 中启用。
+- 天气错误分类：WeatherKit 和城市地理编码的网络失败会归类为“网络不可用”；WeatherKit entitlement / provisioning 问题会提示需要在 App ID 的 App Services、App Capabilities 和 Xcode Capability 中启用。
 - 删除单件衣物、批量删除、清空本地数据：改为先保存 SwiftData 删除事务，成功后再删除图片文件。
 - 备份恢复：更新已有衣物时不再提前删除旧图片，保存成功后再清理旧文件。
 - `Info.plist` 保留 `remote-notification` 后台模式，因为 CloudKit 同步需要该后台能力；这不是自定义 APNs 推送实现。
@@ -91,7 +91,7 @@ xcodebuild test \
 - 外部测试审核通过后，测试员通过 TestFlight 邀请安装。
 - 每次重新上传都要增加 Build Number；Marketing Version 可以先保持 `1.0.0`。
 - WeatherKit 后台开通后，必须重新 Archive 并安装新的 TestFlight build；旧包不会自动获得新的 entitlement。
-- 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`Apple Weather 暂时拒绝了天气请求` 通常是 App ID、Capability 或 provisioning profile 没刷新，或安装的仍是旧 TestFlight 包。
+- 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`Apple Weather 暂时拒绝了天气请求` 通常是 App ID 的 App Services / App Capabilities、Xcode Capability 或 provisioning profile 没刷新，或安装的仍是旧 TestFlight 包。
 
 ## 2026-04-29 天气与测试记录
 
@@ -150,6 +150,22 @@ git status
 - 2026-04-29 21:02 已验证 Release generic iOS build 成功，构建日志里包含 `com.apple.developer.weatherkit = 1`。如果 Xcode 仍报签名问题，先 Clean Build Folder，再重新 Archive。
 - 第 8 版修正 WeatherKit 错误分类：明确识别 `WeatherError.permissionDenied`，避免把所有天气权限拒绝误报成“尚未配置完成”。
 - 如果 WeatherKit 真机仍提示不可用，先确认安装的是 `1.0.0 (8)` 或更新版本，并在 Organizer 上传后重新安装 TestFlight 包；旧 TestFlight 包不会自动获得新签名能力。
+
+## 2026-04-30 天气商业化审查记录
+
+- 天气服务选择：继续使用 Apple WeatherKit，适合正式商业化版本；代码和发布文档不再引用 Open-Meteo 免费非商业端点。
+- App 内归因：首页天气卡和天气详情页保留 Apple Weather attribution 入口。
+- 全球城市：城市天气走内置常用城市兜底 + 系统地理编码 + WeatherKit，不是上海专用。
+- 当前修复：
+  - 首页启动会尊重用户保存的天气来源：如果用户上次选择城市天气，下次启动会继续用该城市拉取真实预报。
+  - WeatherKit 错误分类收窄：普通网络错误不再误报为 WeatherKit 配置错误。
+  - App 内 WeatherKit 配置提示改为明确要求 App ID 的 `App Services` 和 `Capabilities` 双开通。
+- 真机仍不可用时的优先排查：
+  1. Developer 后台 `Certificates, Identifiers & Profiles` -> `Identifiers` -> `com.ramsey.wearorder`。
+  2. `App Services` 标签页勾选 WeatherKit 并保存。
+  3. `Capabilities` 标签页勾选 WeatherKit 并保存。
+  4. Xcode `Signing & Capabilities` 中保留 WeatherKit。
+  5. Clean Build Folder，重新 Archive，上传新的 TestFlight build，并在手机上安装该新 build。
 
 ## 下一步优先级
 

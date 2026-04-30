@@ -5,15 +5,14 @@ struct WeatherAnimationView: View {
 
     let kind: HomeDashboardViewModel.WeatherKind
     var isActive: Bool = false
+    var usesOffscreenRendering: Bool = false
 
     var body: some View {
         Group {
             if shouldAnimate {
                 TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
-                    weatherCanvas(time: timeline.date.timeIntervalSinceReferenceDate, animated: true)
+                    animatedCanvas(time: timeline.date.timeIntervalSinceReferenceDate)
                 }
-                .compositingGroup()
-                .drawingGroup()
             } else {
                 weatherCanvas(time: 0, animated: false)
             }
@@ -24,6 +23,18 @@ struct WeatherAnimationView: View {
 
     private var shouldAnimate: Bool {
         isActive && !reduceMotion
+    }
+
+    @ViewBuilder
+    private func animatedCanvas(time: TimeInterval) -> some View {
+        let canvas = weatherCanvas(time: time, animated: true)
+        if usesOffscreenRendering {
+            canvas
+                .compositingGroup()
+                .drawingGroup()
+        } else {
+            canvas
+        }
     }
 
     private func weatherCanvas(time: TimeInterval, animated: Bool) -> some View {

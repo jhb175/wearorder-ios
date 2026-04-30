@@ -63,6 +63,32 @@ final class WeatherForecastServiceTests: XCTestCase {
         )
     }
 
+    func testWeatherKitClassifierDoesNotTreatUnrelatedJWTErrorsAsAccessDenied() {
+        let error = NSError(
+            domain: "WearOrderTests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "jwt token refresh failed"]
+        )
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.weatherKitError(from: error),
+            .forecastUnavailable
+        )
+    }
+
+    func testWeatherKitClassifierDetectsWeatherDaemonAuthenticatorFailure() {
+        let error = NSError(
+            domain: "WeatherDaemon.WDSJWTAuthenticatorServiceListener.Errors",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "JWT authenticator rejected request"]
+        )
+
+        XCTAssertEqual(
+            WeatherForecastErrorClassifier.weatherKitError(from: error),
+            .weatherKitAccessDenied
+        )
+    }
+
     func testCityLookupClassifierOnlyUsesCityNotFoundForNoResults() {
         let error = NSError(domain: kCLErrorDomain, code: CLError.Code.geocodeFoundNoResult.rawValue)
 
