@@ -3,6 +3,7 @@ import Foundation
 struct OOTDCreationDraft: Equatable {
     let title: String
     let notes: String
+    let presetTagsText: String
     let marksAsToday: Bool
 }
 
@@ -50,7 +51,19 @@ enum OOTDStarterTemplate: String, CaseIterable, Identifiable {
         OOTDCreationDraft(
             title: title,
             notes: summary,
+            presetTagsText: OOTDPresetTag.text(from: presetTags),
             marksAsToday: self == .commute
         )
+    }
+
+    private var presetTags: [String] {
+        switch self {
+        case .commute:
+            [OOTDPresetTag.commute.title, OOTDPresetTag.formal.title]
+        case .weekend:
+            [OOTDPresetTag.weekend.title, OOTDPresetTag.casual.title]
+        case .social:
+            [OOTDPresetTag.date.title, OOTDPresetTag.party.title]
+        }
     }
 }

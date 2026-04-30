@@ -90,6 +90,7 @@ enum WardrobeExporter {
             "创建时间：\(formattedDateTime(outfit.createdAt))",
             "今日搭配：\(outfit.isToday ? "是" : "否")",
             "单品数量：\(outfit.orderedItems.count)",
+            "标签：\(outfit.presetTags.isEmpty ? "未设置" : outfit.presetTags.joined(separator: "、"))",
             ""
         ]
 
@@ -251,6 +252,9 @@ enum WardrobeExporter {
             lines.append("- \(outfit.title)\(outfit.isToday ? "（今日搭配）" : "")")
             lines.append("  创建：\(formattedDate(outfit.createdAt))")
             lines.append("  单品：\(outfit.summaryText)")
+            if !outfit.presetTags.isEmpty {
+                lines.append("  标签：\(outfit.presetTags.joined(separator: "、"))")
+            }
             if !trimmed(outfit.notes).isEmpty {
                 lines.append("  备注：\(trimmed(outfit.notes))")
             }
@@ -276,6 +280,12 @@ enum WardrobeExporter {
             lines.append("  类型：\(plan.planKind.listTitle)")
             lines.append("  日期：\(formattedDate(plan.date))")
             lines.append("  场景：\(plan.occasion)")
+            if !plan.trimmedLocationName.isEmpty {
+                lines.append("  地点：\(plan.trimmedLocationName)")
+            }
+            if !plan.trimmedWeatherCityName.isEmpty {
+                lines.append("  天气城市：\(plan.trimmedWeatherCityName)")
+            }
             lines.append("  搭配：\(plan.linkedOutfit?.title ?? plan.outfitSummary)")
             lines.append("  提醒：\(reminderText(for: plan))")
             if !trimmed(plan.notes).isEmpty {

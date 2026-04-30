@@ -43,7 +43,14 @@ final class OOTDLibrarySnapshotTests: XCTestCase {
 
         XCTAssertEqual(draft.title, "通勤搭配")
         XCTAssertTrue(draft.notes.contains("办公室"))
+        XCTAssertTrue(draft.presetTagsText.contains("通勤"))
         XCTAssertTrue(draft.marksAsToday)
+    }
+
+    func testPresetTagNormalizationDeduplicatesKnownAndCustomTags() {
+        let text = OOTDPresetTag.normalizedText(from: "commute，通勤, 自定义标签, 自定义标签, very-long-custom-tag-name")
+
+        XCTAssertEqual(OOTDPresetTag.normalizedTags(from: text), ["通勤", "自定义标签", "very-long-cu"])
     }
 
     private func makeItem(name: String, category: String) -> WardrobeItem {

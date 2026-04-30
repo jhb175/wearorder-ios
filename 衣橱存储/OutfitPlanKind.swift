@@ -92,4 +92,37 @@ enum OutfitPlanKind: String, CaseIterable, Identifiable, Codable {
             return "适合多日出行，后续会接入目的地和未来天气。"
         }
     }
+
+    var locationFieldTitle: String {
+        switch self {
+        case .daily:
+            return "地点"
+        case .specialEvent:
+            return "活动地点"
+        case .trip:
+            return "目的地"
+        }
+    }
+
+    var locationFieldPrompt: String {
+        switch self {
+        case .daily:
+            return "例如：公司 / 学校 / 市区"
+        case .specialEvent:
+            return "例如：婚礼酒店 / 拍摄地点"
+        case .trip:
+            return "例如：东京 / 首尔 / 巴黎"
+        }
+    }
+
+    var locationHelperText: String {
+        switch self {
+        case .daily:
+            return "地点可留空；填写天气城市后，后续可按这一天的真实天气补充建议。"
+        case .specialEvent:
+            return "特别日建议填写地点和天气城市，方便未来按场景、通勤距离和天气准备。"
+        case .trip:
+            return "旅行计划建议填写目的地和天气城市，后续会用于未来天气与 AI 行李/穿搭建议。"
+        }
+    }
 }

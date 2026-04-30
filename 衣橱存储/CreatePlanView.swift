@@ -9,6 +9,8 @@ struct CreatePlanView: View {
     @State private var selectedPlanKind: OutfitPlanKind = .daily
     @State private var title = "新的穿搭计划"
     @State private var occasion = "穿搭安排"
+    @State private var locationName = ""
+    @State private var weatherCityName = ""
     @State private var notes = ""
     @State private var date = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
     @State private var reminderEnabled = true
@@ -38,6 +40,8 @@ struct CreatePlanView: View {
         _selectedPlanKind = State(initialValue: draft?.planKind ?? .daily)
         _title = State(initialValue: draft?.title ?? suggestedTitle ?? "新的穿搭计划")
         _occasion = State(initialValue: draft?.occasion ?? "穿搭安排")
+        _locationName = State(initialValue: draft?.locationName ?? "")
+        _weatherCityName = State(initialValue: draft?.weatherCityName ?? "")
         _notes = State(initialValue: draft?.notes ?? "")
         _date = State(initialValue: draftDate)
         _reminderEnabled = State(initialValue: draft?.reminderEnabled ?? true)
@@ -109,6 +113,11 @@ struct CreatePlanView: View {
             planKindPicker
             textField(title: "计划标题", text: $title, prompt: "例如：周三通勤")
             textField(title: "场景", text: $occasion, prompt: "例如：办公室 / 会面 / 周末")
+            textField(title: selectedPlanKind.locationFieldTitle, text: $locationName, prompt: selectedPlanKind.locationFieldPrompt)
+            textField(title: "天气城市", text: $weatherCityName, prompt: "例如：上海 / Tokyo / New York")
+            Text(selectedPlanKind.locationHelperText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             textField(title: "备注", text: $notes, prompt: "例如：下午开会前记得换上外套")
 
             VStack(alignment: .leading, spacing: 8) {
@@ -423,7 +432,7 @@ struct CreatePlanView: View {
             let itemFields = outfit.orderedItems.flatMap { item in
                 item.searchableFields + item.styleTags
             }
-            let searchableText = ([outfit.title, outfit.notes, outfit.summaryText] + itemFields)
+            let searchableText = ([outfit.title, outfit.notes, outfit.summaryText] + itemFields + outfit.presetTags)
                 .joined(separator: " ")
             return searchableText.localizedCaseInsensitiveContains(query)
         }
@@ -476,6 +485,8 @@ struct CreatePlanView: View {
             date: date,
             title: trimmedTitle.isEmpty ? "未命名计划" : trimmedTitle,
             occasion: trimmedOccasion.isEmpty ? "穿搭安排" : trimmedOccasion,
+            locationName: locationName.trimmingCharacters(in: .whitespacesAndNewlines),
+            weatherCityName: weatherCityName.trimmingCharacters(in: .whitespacesAndNewlines),
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             outfitSummary: selectedOutfit.summaryText,
             reminderEnabled: reminderEnabled,

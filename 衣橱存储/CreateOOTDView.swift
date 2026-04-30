@@ -9,6 +9,7 @@ struct CreateOOTDView: View {
 
     @State private var title = "新搭配"
     @State private var notes = ""
+    @State private var presetTagsText = ""
     @State private var selectedTopID: PersistentIdentifier?
     @State private var selectedBottomID: PersistentIdentifier?
     @State private var selectedOuterwearID: PersistentIdentifier?
@@ -32,6 +33,7 @@ struct CreateOOTDView: View {
         editingOutfit = nil
         _title = State(initialValue: draft?.title ?? "新搭配")
         _notes = State(initialValue: draft?.notes ?? "")
+        _presetTagsText = State(initialValue: draft?.presetTagsText ?? "")
         _selectedTopID = State(initialValue: CreateOOTDView.initialSelection(for: prefilledItem, slot: .top))
         _selectedBottomID = State(initialValue: CreateOOTDView.initialSelection(for: prefilledItem, slot: .bottom))
         _selectedOuterwearID = State(initialValue: CreateOOTDView.initialSelection(for: prefilledItem, slot: .outerwear))
@@ -48,6 +50,7 @@ struct CreateOOTDView: View {
         self.editingOutfit = editingOutfit
         _title = State(initialValue: editingOutfit.title)
         _notes = State(initialValue: editingOutfit.notes)
+        _presetTagsText = State(initialValue: editingOutfit.presetTagsText)
         _selectedTopID = State(initialValue: editingOutfit.topItem?.persistentModelID)
         _selectedBottomID = State(initialValue: editingOutfit.bottomItem?.persistentModelID)
         _selectedOuterwearID = State(initialValue: editingOutfit.outerwearItem?.persistentModelID)
@@ -85,6 +88,7 @@ struct CreateOOTDView: View {
                     sectionHeader(title: "搭配信息", subtitle: "名称与说明")
                     ootdTextField(title: "搭配名称", text: $title, prompt: "例如：今日通勤搭配")
                     ootdTextField(title: "备注", text: $notes, prompt: "例如：中性色、适合办公室")
+                    presetTagsSection
                 }
 
                 VStack(alignment: .leading, spacing: 16) {
@@ -229,12 +233,79 @@ struct CreateOOTDView: View {
         return names.isEmpty ? "尚未选择单品" : names.joined(separator: " + ")
     }
 
+    private var normalizedPresetTagsText: String {
+        OOTDPresetTag.normalizedText(from: presetTagsText)
+    }
+
+    private var selectedPresetTags: [String] {
+        OOTDPresetTag.normalizedTags(from: presetTagsText)
+    }
+
+    private var presetTagsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("预设标签")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(selectedPresetTags.isEmpty ? "可选" : "\(selectedPresetTags.count) 个")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(OOTDPresetTag.allCases) { tag in
+                        Button {
+                            togglePresetTag(tag.title)
+                            AppHaptics.selection()
+                        } label: {
+                            Label(tag.title, systemImage: tag.symbolName)
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 11)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(
+                            weight: selectedPresetTags.contains(tag.title) ? .secondary : .tertiary,
+                            cornerRadius: HomeMetrics.pillRadius
+                        )
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            TextField("也可以输入自定义标签，用逗号分隔", text: $presetTagsText)
+                .textFieldStyle(.plain)
+                .font(.subheadline)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
+                .onSubmit {
+                    presetTagsText = normalizedPresetTagsText
+                }
+
+            Text("标签会用于 OOTD 预设库搜索、筛选，以及未来把常用穿搭快速排到日期里。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var canSave: Bool {
         guard let bottomItem = selectedItem(for: selectedBottomID) else { return false }
         if selectedItem(for: selectedTopID) != nil {
             return true
         }
         return Set(WardrobeCategory.onePieceRawValues).contains(bottomItem.category)
+    }
+
+    private func togglePresetTag(_ tag: String) {
+        var tags = selectedPresetTags
+        if let index = tags.firstIndex(of: tag) {
+            tags.remove(at: index)
+        } else {
+            tags.append(tag)
+        }
+        presetTagsText = OOTDPresetTag.text(from: tags)
     }
 
     private var coreFlowReadiness: WardrobeCoreFlowReadiness {
@@ -304,6 +375,7 @@ struct CreateOOTDView: View {
         if let editingOutfit {
             editingOutfit.title = trimmedTitle
             editingOutfit.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            editingOutfit.presetTagsText = normalizedPresetTagsText
             editingOutfit.isToday = marksAsToday
             editingOutfit.topItem = selectedItem(for: selectedTopID)
             editingOutfit.bottomItem = selectedItem(for: selectedBottomID)
@@ -317,6 +389,7 @@ struct CreateOOTDView: View {
             outfit = OOTDOutfit(
                 title: trimmedTitle,
                 notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                presetTagsText: normalizedPresetTagsText,
                 isToday: marksAsToday,
                 topItem: selectedItem(for: selectedTopID),
                 bottomItem: selectedItem(for: selectedBottomID),

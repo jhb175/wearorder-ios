@@ -13,6 +13,8 @@ struct ContentView: View {
     @State private var selectedOOTDSection: OOTDWorkspaceSection = .today
     @State private var ootdSearchText = ""
     @State private var selectedOOTDListFilter: OOTDListFilter = .all
+    @State private var selectedOOTDTagFilter: String?
+    @State private var selectedOOTDSortMode: OOTDPresetSortMode = .recent
     @State private var visibleOOTDPresetLimit = 8
     @State private var showsAddClothing = false
     @State private var showsRecommendationInput = false
@@ -196,6 +198,12 @@ struct ContentView: View {
             resetVisibleOOTDPresetLimit()
         }
         .onChange(of: selectedOOTDListFilter) { _, _ in
+            resetVisibleOOTDPresetLimit()
+        }
+        .onChange(of: selectedOOTDTagFilter) { _, _ in
+            resetVisibleOOTDPresetLimit()
+        }
+        .onChange(of: selectedOOTDSortMode) { _, _ in
             resetVisibleOOTDPresetLimit()
         }
     }
@@ -1412,6 +1420,20 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if !outfit.presetTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(outfit.presetTags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
+                        }
+                    }
+                }
+            }
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(outfit.orderedItems, id: \.id) { item in
@@ -1553,6 +1575,67 @@ struct ContentView: View {
                 }
                 .padding(.vertical, 2)
             }
+
+            if !availableOOTDTagFilters.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        Button {
+                            selectedOOTDTagFilter = nil
+                            AppHaptics.selection()
+                        } label: {
+                            Label("全部标签", systemImage: "tag")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(
+                            weight: selectedOOTDTagFilter == nil ? .secondary : .tertiary,
+                            cornerRadius: HomeMetrics.pillRadius
+                        )
+
+                        ForEach(availableOOTDTagFilters, id: \.self) { tag in
+                            Button {
+                                selectedOOTDTagFilter = tag
+                                AppHaptics.selection()
+                            } label: {
+                                Text(tag)
+                                    .font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(HomePressableButtonStyle())
+                            .homeCardSurface(
+                                weight: selectedOOTDTagFilter == tag ? .secondary : .tertiary,
+                                cornerRadius: HomeMetrics.pillRadius
+                            )
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(OOTDPresetSortMode.allCases, id: \.self) { mode in
+                        Button {
+                            selectedOOTDSortMode = mode
+                            AppHaptics.selection()
+                        } label: {
+                            Label(mode.title, systemImage: mode.systemImage)
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(HomePressableButtonStyle())
+                        .homeCardSurface(
+                            weight: selectedOOTDSortMode == mode ? .secondary : .tertiary,
+                            cornerRadius: HomeMetrics.pillRadius
+                        )
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
     }
 
@@ -1567,6 +1650,8 @@ struct ContentView: View {
             Button {
                 ootdSearchText = ""
                 selectedOOTDListFilter = .all
+                selectedOOTDTagFilter = nil
+                selectedOOTDSortMode = .recent
             } label: {
                 Label("清空筛选", systemImage: "line.3.horizontal.decrease.circle")
                     .font(.caption.weight(.semibold))
@@ -1819,6 +1904,34 @@ private extension ContentView {
         }
     }
 
+    enum OOTDPresetSortMode: CaseIterable {
+        case recent
+        case title
+        case plannedCount
+
+        var title: String {
+            switch self {
+            case .recent:
+                "最近更新"
+            case .title:
+                "名称"
+            case .plannedCount:
+                "使用次数"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .recent:
+                "clock"
+            case .title:
+                "textformat"
+            case .plannedCount:
+                "calendar.badge.clock"
+            }
+        }
+    }
+
     var ootdListSubtitle: String {
         guard !outfits.isEmpty else { return "0 套" }
         if visibleOOTDOutfits.count == outfits.count {
@@ -1831,10 +1944,18 @@ private extension ContentView {
         OOTDLibrarySnapshot.make(outfits: outfits, plans: plans)
     }
 
+    var availableOOTDTagFilters: [String] {
+        let tags = outfits.flatMap(\.presetTags)
+        return Array(Set(tags)).sorted { $0.localizedCompare($1) == .orderedAscending }
+    }
+
     var visibleOOTDOutfits: [OOTDOutfit] {
-        outfits.filter { outfit in
-            matchesOOTDFilter(outfit) && matchesOOTDSearch(outfit)
+        let filteredOutfits = outfits.filter { outfit in
+            matchesOOTDFilter(outfit) &&
+            matchesOOTDSearch(outfit) &&
+            matchesOOTDTagFilter(outfit)
         }
+        return sortedOOTDOutfits(filteredOutfits)
     }
 
     var displayedOOTDOutfits: [OOTDOutfit] {
@@ -1879,9 +2000,45 @@ private extension ContentView {
         let itemFields = outfit.orderedItems.flatMap { item in
             item.searchableFields + item.styleTags
         }
-        let searchableText = ([outfit.title, outfit.notes, outfit.summaryText] + itemFields)
+        let searchableText = ([outfit.title, outfit.notes, outfit.summaryText] + itemFields + outfit.presetTags)
             .joined(separator: " ")
         return searchableText.localizedCaseInsensitiveContains(query)
+    }
+
+    func matchesOOTDTagFilter(_ outfit: OOTDOutfit) -> Bool {
+        guard let selectedOOTDTagFilter else { return true }
+        return outfit.presetTags.contains { $0.localizedCaseInsensitiveCompare(selectedOOTDTagFilter) == .orderedSame }
+    }
+
+    func sortedOOTDOutfits(_ outfits: [OOTDOutfit]) -> [OOTDOutfit] {
+        switch selectedOOTDSortMode {
+        case .recent:
+            return outfits.sorted { lhs, rhs in
+                if lhs.lastModifiedAt == rhs.lastModifiedAt {
+                    return lhs.title.localizedCompare(rhs.title) == .orderedAscending
+                }
+                return lhs.lastModifiedAt > rhs.lastModifiedAt
+            }
+        case .title:
+            return outfits.sorted { lhs, rhs in
+                lhs.title.localizedCompare(rhs.title) == .orderedAscending
+            }
+        case .plannedCount:
+            return outfits.sorted { lhs, rhs in
+                let lhsCount = plannedCount(for: lhs)
+                let rhsCount = plannedCount(for: rhs)
+                if lhsCount == rhsCount {
+                    return lhs.lastModifiedAt > rhs.lastModifiedAt
+                }
+                return lhsCount > rhsCount
+            }
+        }
+    }
+
+    func plannedCount(for outfit: OOTDOutfit) -> Int {
+        plans.reduce(0) { count, plan in
+            count + ((plan.linkedOutfit?.id == outfit.id) ? 1 : 0)
+        }
     }
 
     func handleOOTDLibraryTask(_ task: OOTDLibraryTask) {
@@ -1890,14 +2047,17 @@ private extension ContentView {
             startCreateOOTDFlow()
         case .showAll:
             selectedOOTDListFilter = .all
+            selectedOOTDTagFilter = nil
             ootdSearchText = ""
             AppHaptics.selection()
         case .showIncomplete:
             selectedOOTDListFilter = .incomplete
+            selectedOOTDTagFilter = nil
             ootdSearchText = ""
             AppHaptics.selection()
         case .showUnplanned:
             selectedOOTDListFilter = .unplanned
+            selectedOOTDTagFilter = nil
             ootdSearchText = ""
             AppHaptics.selection()
         }

@@ -12,6 +12,8 @@ struct PlanDetailView: View {
     @State private var selectedPlanKind: OutfitPlanKind
     @State private var title: String
     @State private var occasion: String
+    @State private var locationName: String
+    @State private var weatherCityName: String
     @State private var date: Date
     @State private var notes: String
     @State private var reminderEnabled: Bool
@@ -26,6 +28,8 @@ struct PlanDetailView: View {
         _selectedPlanKind = State(initialValue: plan.planKind)
         _title = State(initialValue: plan.title)
         _occasion = State(initialValue: plan.occasion)
+        _locationName = State(initialValue: plan.locationName)
+        _weatherCityName = State(initialValue: plan.weatherCityName)
         _date = State(initialValue: plan.date)
         _notes = State(initialValue: plan.notes)
         _reminderEnabled = State(initialValue: plan.reminderEnabled)
@@ -90,6 +94,13 @@ struct PlanDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            if !displayContextSummary.isEmpty {
+                Label(displayContextSummary, systemImage: "mappin.and.ellipse")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
             if let reminderDate = plan.reminderDate, plan.reminderEnabled {
                 Text("提醒时间 · \(reminderDate.formatted(.dateTime.hour().minute()))")
                     .font(.footnote.weight(.medium))
@@ -111,6 +122,11 @@ struct PlanDetailView: View {
             planKindPicker
             textField(title: "计划标题", text: $title, prompt: "例如：周三通勤")
             textField(title: "场景", text: $occasion, prompt: "例如：办公室 / 约会 / 周末")
+            textField(title: selectedPlanKind.locationFieldTitle, text: $locationName, prompt: selectedPlanKind.locationFieldPrompt)
+            textField(title: "天气城市", text: $weatherCityName, prompt: "例如：上海 / Tokyo / New York")
+            Text(selectedPlanKind.locationHelperText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("计划日期")
@@ -428,6 +444,8 @@ struct PlanDetailView: View {
         plan.planKind = selectedPlanKind
         plan.title = trimmedTitle.isEmpty ? selectedPlanKind.defaultTitle : trimmedTitle
         plan.occasion = trimmedOccasion.isEmpty ? selectedPlanKind.defaultOccasion : trimmedOccasion
+        plan.locationName = locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        plan.weatherCityName = weatherCityName.trimmingCharacters(in: .whitespacesAndNewlines)
         plan.date = date
         plan.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         plan.linkedOutfit = selectedOutfit
@@ -489,6 +507,8 @@ struct PlanDetailView: View {
             date: targetDate,
             title: displayTitle,
             occasion: displayOccasion,
+            locationName: locationName.trimmingCharacters(in: .whitespacesAndNewlines),
+            weatherCityName: weatherCityName.trimmingCharacters(in: .whitespacesAndNewlines),
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             outfitSummary: selectedOutfit?.summaryText ?? plan.outfitSummary,
             reminderEnabled: keepsReminder,
@@ -609,6 +629,13 @@ struct PlanDetailView: View {
     private var displayOccasion: String {
         let trimmedOccasion = occasion.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedOccasion.isEmpty ? selectedPlanKind.defaultOccasion : trimmedOccasion
+    }
+
+    private var displayContextSummary: String {
+        [locationName, weatherCityName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
     }
 
     private var nextReuseDate: Date {

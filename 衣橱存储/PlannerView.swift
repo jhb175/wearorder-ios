@@ -974,6 +974,12 @@ struct PlannerView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if !plan.trimmedLocationName.isEmpty || !plan.trimmedWeatherCityName.isEmpty {
+                    Text(plan.contextSummaryText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 if sameDayPlanCount(for: plan) > 1 {
                     Text("同日还有 \(sameDayPlanCount(for: plan) - 1) 条计划")
                         .font(.caption.weight(.medium))
@@ -1083,6 +1089,8 @@ struct PlannerView: View {
             planKind: .daily,
             title: "新的穿搭计划",
             occasion: "穿搭安排",
+            locationName: "",
+            weatherCityName: "",
             notes: "",
             date: planDate,
             reminderEnabled: reminderTime > .now,
@@ -1153,6 +1161,8 @@ struct PlannerView: View {
             plan.planKind.listTitle,
             plan.title,
             plan.occasion,
+            plan.locationName,
+            plan.weatherCityName,
             plan.notes,
             plan.outfitSummary,
             plan.linkedOutfit?.title ?? "",

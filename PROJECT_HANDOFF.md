@@ -22,7 +22,7 @@ open 衣橱存储.xcodeproj
 
 - `Signing & Capabilities` 里的 Team 是否选择付费开发者团队。
 - iCloud / CloudKit、WeatherKit、Sign in with Apple 是否仍开启。
-- 上传 TestFlight 前递增 Build Number，例如 `1.0.0 (4)`。
+- 上传 TestFlight 前递增 Build Number。当前准备版本是 `1.0.0 (12)`，下一次重新上传建议递增到 `(13)`。
 
 4. 新 Codex 会话可以直接说：
 
@@ -51,6 +51,8 @@ open 衣橱存储.xcodeproj
 - 首页已精简到天气、今日 OOTD、近期计划等高频入口；数据备份/报告等低频工具迁到设置和二级页。
 - 衣橱大数量场景已做首页预览 + 二级页分页：全部单品、入库时间线、分类覆盖都避免在主页面一次性铺满。
 - OOTD/计划/预设链路已打通：OOTD 保留为预设库，计划负责把预设安排到日期，创建计划时支持搜索和分页选择预设。
+- 1-6 阶段功能已在继续 7-10 前验证通过：本地烟测、App Store readiness、generic iOS build 和 iPhone 17 Pro 模拟器测试均通过。
+- 7-10 阶段已补齐到可测状态：OOTD 预设标签、预设库标签筛选/排序、计划地点和天气城市上下文、备份/导出/修复兼容。
 
 ## 本地验证命令
 
@@ -90,8 +92,19 @@ xcodebuild test \
 - 普通朋友测试建议走外部测试组；外部测试需要 Beta App Review。
 - 外部测试审核通过后，测试员通过 TestFlight 邀请安装。
 - 每次重新上传都要增加 Build Number；Marketing Version 可以先保持 `1.0.0`。
+- 当前工程 Build Number 是 `12`；如果 App Store Connect 已经有 `(12)`，下一包改为 `13`。
 - WeatherKit 后台开通后，必须重新 Archive 并安装新的 TestFlight build；旧包不会自动获得新的 entitlement。
 - 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`Apple Weather 暂时拒绝了天气请求` 通常是 App ID 的 App Services / App Capabilities、Xcode Capability 或 provisioning profile 没刷新，或安装的仍是旧 TestFlight 包。
+
+## 2026-04-30 1-10 阶段记录
+
+- 当前代码已把 1-6 作为验证基线，再继续实现 7-10。
+- 7：OOTD 预设库增加标签字段，创建/编辑 OOTD 时可选择通勤、休闲、周末、约会、正式、运动、旅行、聚会、仪式、校园，也支持自定义标签。
+- 7：OOTD 页支持按标签筛选，并支持最近更新、名称、使用次数排序；创建计划时的预设搜索会覆盖预设标签。
+- 8：计划新增 `locationName` 和 `weatherCityName`，日常、特殊日子、旅行会展示不同字段文案，为后续 MapKit 地点选择和未来天气做准备。
+- 9：导出报告、备份恢复和数据修复已兼容预设标签、地点、天气城市字段，后续 AI Pro 可以读取这些上下文生成未来 OOTD。
+- 10：新增/更新单元测试覆盖预设标签标准化，以及备份恢复中的预设标签、地点和天气城市。
+- 当前准备上传测试的建议版本：`1.0.0 (12)`。若继续修改后再打包，请递增 Build Number。
 
 ## 2026-04-29 天气与测试记录
 
@@ -113,7 +126,8 @@ xcodebuild test \
 
 ## 2026-04-29 换机打包记录
 
-- 当前准备给 TestFlight 继续测试的版本是 `1.0.0 (8)`。
+- 这一节是历史记录；当前最新建议版本以 `2026-04-30 1-10 阶段记录` 为准。
+- 当时准备给 TestFlight 继续测试的版本是 `1.0.0 (8)`。
 - 最新提交：
   - `f8238ee Bump build number to 5`
   - `03ad549 Document TestFlight weather handoff`
@@ -145,7 +159,7 @@ git status
   - Team 选择付费 Apple Developer Program 团队。
   - Bundle Identifier 是 `com.ramsey.wearorder`。
   - Signing & Capabilities 中有 `Sign in with Apple`、`WeatherKit`。
-  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前下一次如果再发包建议改为 `1.0.0 (9)`。
+  - Archive 前构建号必须大于 App Store Connect 已上传 build；当前最新建议版本见本文上方记录。
 - WeatherKit 第 6 版失败后的处理：App ID 后台已经开启 WeatherKit，归档包也包含 `com.apple.developer.weatherkit`。第 7 版保留自动签名，避免 `Automatically manage signing` 和手动 `Apple Distribution` 冲突；重新 Archive 时让 Xcode 生成/选择包含 WeatherKit 的 provisioning profile。
 - 2026-04-29 21:02 已验证 Release generic iOS build 成功，构建日志里包含 `com.apple.developer.weatherkit = 1`。如果 Xcode 仍报签名问题，先 Clean Build Folder，再重新 Archive。
 - 第 8 版修正 WeatherKit 错误分类：明确识别 `WeatherError.permissionDenied`，避免把所有天气权限拒绝误报成“尚未配置完成”。

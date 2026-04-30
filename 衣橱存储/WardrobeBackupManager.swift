@@ -79,7 +79,7 @@ enum WardrobeBackupError: LocalizedError {
 
 @MainActor
 enum WardrobeBackupManager {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     static func makeBackupFile(
         items: [WardrobeItem],
@@ -386,6 +386,7 @@ private struct WardrobeBackupPayload: Codable {
         let id: UUID
         let title: String
         let notes: String
+        let presetTagsText: String?
         let createdAt: Date
         let updatedAt: Date?
         let isToday: Bool
@@ -406,6 +407,7 @@ private struct WardrobeBackupPayload: Codable {
             id = outfit.id
             title = outfit.title
             notes = outfit.notes
+            presetTagsText = outfit.presetTagsText
             createdAt = outfit.createdAt
             updatedAt = outfit.updatedAt
             isToday = outfit.isToday
@@ -431,6 +433,7 @@ private struct WardrobeBackupPayload: Codable {
                 id: id,
                 title: title,
                 notes: notes,
+                presetTagsText: presetTagsText ?? "",
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isToday: isToday,
@@ -456,6 +459,7 @@ private struct WardrobeBackupPayload: Codable {
         ) {
             outfit.title = title
             outfit.notes = notes
+            outfit.presetTagsText = OOTDPresetTag.normalizedText(from: presetTagsText ?? "")
             outfit.createdAt = createdAt
             outfit.updatedAt = updatedAt
             outfit.isToday = isToday
@@ -480,6 +484,8 @@ private struct WardrobeBackupPayload: Codable {
         let date: Date
         let title: String
         let occasion: String
+        let locationName: String?
+        let weatherCityName: String?
         let notes: String
         let outfitSummary: String
         let reminderEnabled: Bool
@@ -494,6 +500,8 @@ private struct WardrobeBackupPayload: Codable {
             date = plan.date
             title = plan.title
             occasion = plan.occasion
+            locationName = plan.locationName
+            weatherCityName = plan.weatherCityName
             notes = plan.notes
             outfitSummary = plan.outfitSummary
             reminderEnabled = plan.reminderEnabled
@@ -510,6 +518,8 @@ private struct WardrobeBackupPayload: Codable {
                 date: date,
                 title: title,
                 occasion: occasion,
+                locationName: locationName ?? "",
+                weatherCityName: weatherCityName ?? "",
                 notes: notes,
                 outfitSummary: outfitSummary,
                 reminderEnabled: reminderEnabled,
@@ -528,6 +538,8 @@ private struct WardrobeBackupPayload: Codable {
             plan.date = date
             plan.title = title
             plan.occasion = occasion
+            plan.locationName = (locationName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            plan.weatherCityName = (weatherCityName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             plan.notes = notes
             plan.outfitSummary = outfitSummary
             plan.reminderEnabled = reminderEnabled

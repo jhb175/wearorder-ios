@@ -7,6 +7,8 @@ struct PlanCreationDraft: Identifiable {
     var planKind: OutfitPlanKind
     var title: String
     var occasion: String
+    var locationName: String
+    var weatherCityName: String
     var notes: String
     var date: Date
     var reminderEnabled: Bool
@@ -23,6 +25,8 @@ struct PlanCreationDraft: Identifiable {
             planKind: .daily,
             title: "新的穿搭计划",
             occasion: "穿搭安排",
+            locationName: "",
+            weatherCityName: "",
             notes: "",
             date: date,
             reminderEnabled: true,
@@ -88,6 +92,8 @@ enum PlannerQuickTemplate: String, CaseIterable, Identifiable {
             planKind: .daily,
             title: title,
             occasion: occasion,
+            locationName: "",
+            weatherCityName: "",
             notes: notes,
             date: date,
             reminderEnabled: true,

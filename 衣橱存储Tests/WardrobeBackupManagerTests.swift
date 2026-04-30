@@ -30,6 +30,7 @@ final class WardrobeBackupManagerTests: XCTestCase {
             id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
             title: "热天小雨搭配",
             notes: "雨天但气温很高，不应该排除夏季单品。",
+            presetTagsText: "通勤，旅行",
             createdAt: exportedAt,
             updatedAt: exportedAt,
             isToday: true,
@@ -47,6 +48,8 @@ final class WardrobeBackupManagerTests: XCTestCase {
             date: exportedAt.addingTimeInterval(86_400),
             title: "明天通勤",
             occasion: "通勤",
+            locationName: "上海虹桥",
+            weatherCityName: "Shanghai",
             notes: "恢复后要继续关联 OOTD。",
             outfitSummary: outfit.summaryText,
             reminderEnabled: false,
@@ -105,7 +108,10 @@ final class WardrobeBackupManagerTests: XCTestCase {
         XCTAssertEqual(restoredOutfit.aiWeatherSummary, "小雨，24 度")
         XCTAssertEqual(restoredOutfit.aiGeneratedAt, exportedAt)
         XCTAssertEqual(restoredOutfit.aiModelIdentifier, "wearorder-ai-preview")
+        XCTAssertEqual(restoredOutfit.presetTags, ["通勤", "旅行"])
         XCTAssertEqual(restoredPlan.linkedOutfit?.id, outfit.id)
+        XCTAssertEqual(restoredPlan.trimmedLocationName, "上海虹桥")
+        XCTAssertEqual(restoredPlan.trimmedWeatherCityName, "Shanghai")
         XCTAssertEqual(restoredPlan.outfitSummary, "白色短袖 + 浅蓝牛仔裤")
     }
 

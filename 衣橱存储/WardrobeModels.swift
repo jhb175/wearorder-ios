@@ -94,6 +94,8 @@ final class OutfitPlan {
     var date: Date = Date.now
     var title: String = ""
     var occasion: String = ""
+    var locationName: String = ""
+    var weatherCityName: String = ""
     var notes: String = ""
     var outfitSummary: String = ""
     var reminderEnabled: Bool = false
@@ -108,6 +110,8 @@ final class OutfitPlan {
         date: Date,
         title: String,
         occasion: String,
+        locationName: String = "",
+        weatherCityName: String = "",
         notes: String = "",
         outfitSummary: String,
         reminderEnabled: Bool,
@@ -121,6 +125,8 @@ final class OutfitPlan {
         self.date = date
         self.title = title
         self.occasion = occasion
+        self.locationName = locationName
+        self.weatherCityName = weatherCityName
         self.notes = notes
         self.outfitSummary = outfitSummary
         self.reminderEnabled = reminderEnabled
@@ -141,6 +147,7 @@ final class OOTDOutfit {
     var id: UUID = UUID()
     var title: String = ""
     var notes: String = ""
+    var presetTagsText: String = ""
     var createdAt: Date = Date.now
     var updatedAt: Date?
     var isToday: Bool = false
@@ -162,6 +169,7 @@ final class OOTDOutfit {
         id: UUID = UUID(),
         title: String,
         notes: String,
+        presetTagsText: String = "",
         createdAt: Date = .now,
         updatedAt: Date? = nil,
         isToday: Bool = false,
@@ -181,6 +189,7 @@ final class OOTDOutfit {
         self.id = id
         self.title = title
         self.notes = notes
+        self.presetTagsText = OOTDPresetTag.normalizedText(from: presetTagsText)
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.isToday = isToday
@@ -372,6 +381,10 @@ extension OOTDOutfit {
         source.displayTitle
     }
 
+    var presetTags: [String] {
+        OOTDPresetTag.normalizedTags(from: presetTagsText)
+    }
+
     var orderedItems: [WardrobeItem] {
         [topItem, bottomItem, outerwearItem, shoesItem, bagItem, accessoryItem].compactMap { $0 }
     }
@@ -410,5 +423,19 @@ extension OOTDOutfit {
 extension OutfitPlan {
     var lastModifiedAt: Date {
         updatedAt ?? createdAt
+    }
+
+    var trimmedLocationName: String {
+        locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var trimmedWeatherCityName: String {
+        weatherCityName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var contextSummaryText: String {
+        let parts = [trimmedLocationName, trimmedWeatherCityName]
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? planKind.helperText : parts.joined(separator: " · ")
     }
 }

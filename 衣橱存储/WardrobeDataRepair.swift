@@ -151,9 +151,11 @@ enum WardrobeDataRepair {
     private static func repair(outfit: OOTDOutfit, applyChanges: Bool) -> Bool {
         let normalizedTitle = fallback(outfit.title, defaultValue: "未命名搭配")
         let normalizedNotes = outfit.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedPresetTagsText = OOTDPresetTag.normalizedText(from: outfit.presetTagsText)
 
         let changed = outfit.title != normalizedTitle ||
         outfit.notes != normalizedNotes ||
+        outfit.presetTagsText != normalizedPresetTagsText ||
         outfit.updatedAt == nil
 
         guard changed else { return false }
@@ -161,6 +163,7 @@ enum WardrobeDataRepair {
         if applyChanges {
             outfit.title = normalizedTitle
             outfit.notes = normalizedNotes
+            outfit.presetTagsText = normalizedPresetTagsText
             outfit.updatedAt = .now
         }
 
@@ -174,6 +177,8 @@ enum WardrobeDataRepair {
     ) -> (normalized: Bool, disabledInvalidReminder: Bool) {
         let normalizedTitle = fallback(plan.title, defaultValue: "未命名计划")
         let normalizedOccasion = fallback(plan.occasion, defaultValue: "穿搭安排")
+        let normalizedLocationName = plan.locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedWeatherCityName = plan.weatherCityName.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedNotes = plan.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedSummary: String
         if let linkedOutfit = plan.linkedOutfit,
@@ -190,6 +195,8 @@ enum WardrobeDataRepair {
 
         let normalized = plan.title != normalizedTitle ||
         plan.occasion != normalizedOccasion ||
+        plan.locationName != normalizedLocationName ||
+        plan.weatherCityName != normalizedWeatherCityName ||
         plan.notes != normalizedNotes ||
         plan.outfitSummary != normalizedSummary ||
         hasInvalidPlanKind ||
@@ -205,6 +212,8 @@ enum WardrobeDataRepair {
             plan.title = normalizedTitle
             plan.planKind = normalizedPlanKind
             plan.occasion = normalizedOccasion
+            plan.locationName = normalizedLocationName
+            plan.weatherCityName = normalizedWeatherCityName
             plan.notes = normalizedNotes
             plan.outfitSummary = normalizedSummary
             if hasInvalidReminder || shouldClearDisabledReminderDate {
