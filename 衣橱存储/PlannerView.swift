@@ -22,6 +22,7 @@ struct PlannerView: View {
     @State private var showsCreateOOTD = false
     @State private var showsAddClothing = false
     @State private var feedback: ActionFeedbackState?
+    @State private var planWeatherStates: [String: PlanWeatherLoadState] = [:]
     private let presentationStyle: PresentationStyle
 
     init(presentationStyle: PresentationStyle = .standalone) {
@@ -99,6 +100,9 @@ struct PlannerView: View {
             .padding(.bottom, 120)
         }
         .background(background)
+        .task(id: visiblePlanWeatherLookupSignature) {
+            await refreshVisiblePlanWeatherSummaries()
+        }
     }
 
     @ToolbarContentBuilder
@@ -474,6 +478,7 @@ struct PlannerView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                compactPlanWeatherLine(for: plan)
             }
 
             Spacer(minLength: 8)
@@ -521,6 +526,7 @@ struct PlannerView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                    compactPlanWeatherLine(for: primaryPlan)
                 } else {
                     Text(day.isToday ? "今天还没安排 OOTD" : "未安排")
                         .font(.subheadline.weight(.semibold))
@@ -734,6 +740,13 @@ struct PlannerView: View {
                 matchesKindFilter(plan) && matchesFocusFilter(plan) && matchesSearch(plan)
             }
         )
+    }
+
+    private var visiblePlanWeatherLookupSignature: String {
+        visiblePlans
+            .prefix(8)
+            .compactMap(planWeatherLookupKey(for:))
+            .joined(separator: "|")
     }
 
     private var selectedDayPlans: [OutfitPlan] {
@@ -980,6 +993,7 @@ struct PlannerView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
+                compactPlanWeatherLine(for: plan)
                 if sameDayPlanCount(for: plan) > 1 {
                     Text("同日还有 \(sameDayPlanCount(for: plan) - 1) 条计划")
                         .font(.caption.weight(.medium))
@@ -1046,6 +1060,36 @@ struct PlannerView: View {
         AppHaptics.selection()
     }
 
+    @ViewBuilder
+    private func compactPlanWeatherLine(for plan: OutfitPlan) -> some View {
+        if let key = planWeatherLookupKey(for: plan) {
+            switch planWeatherStates[key] ?? .idle {
+            case .loaded(let summary):
+                Label(summary.compactText, systemImage: summary.symbolName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            case .loading:
+                Label("天气读取中", systemImage: "cloud")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            case .unavailable:
+                Label("天气暂不可用", systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            case .idle:
+                Label("等待天气", systemImage: "cloud.sun")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            case .missingCity:
+                EmptyView()
+            }
+        }
+    }
+
     private func startCreatePlanFlow(on date: Date? = nil) {
         guard coreFlowReadiness.canCreatePlan else {
             if coreFlowReadiness.canCreateOOTD {
@@ -1096,6 +1140,30 @@ struct PlannerView: View {
             reminderEnabled: reminderTime > .now,
             reminderTime: reminderTime
         )
+    }
+
+    @MainActor
+    private func refreshVisiblePlanWeatherSummaries() async {
+        let targets = visiblePlans.prefix(8).compactMap { plan -> (key: String, cityName: String, date: Date)? in
+            guard let key = planWeatherLookupKey(for: plan) else { return nil }
+            guard planWeatherStates[key] == nil else { return nil }
+            return (key, plan.trimmedWeatherCityName, plan.date)
+        }
+
+        guard !targets.isEmpty else { return }
+
+        for target in targets {
+            planWeatherStates[target.key] = .loading
+            do {
+                let summary = try await WeatherForecastService().fetchDailyForecast(
+                    cityName: target.cityName,
+                    targetDate: target.date
+                )
+                planWeatherStates[target.key] = .loaded(summary)
+            } catch {
+                planWeatherStates[target.key] = .unavailable(PlanWeatherLoadState.message(from: error))
+            }
+        }
     }
 
     @MainActor
@@ -1201,6 +1269,21 @@ struct PlannerView: View {
 
     private func sameDayPlanCount(for plan: OutfitPlan) -> Int {
         plans.filter { Calendar.current.isDate($0.date, inSameDayAs: plan.date) }.count
+    }
+
+    private func planWeatherLookupKey(for plan: OutfitPlan) -> String? {
+        let cityName = plan.trimmedWeatherCityName
+        guard !cityName.isEmpty else { return nil }
+
+        let dayKey = Int(Calendar.current.startOfDay(for: plan.date).timeIntervalSince1970)
+        return [plan.id.uuidString, String(dayKey), normalizedWeatherCityKey(cityName)].joined(separator: ":")
+    }
+
+    private func normalizedWeatherCityKey(_ cityName: String) -> String {
+        cityName
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
     }
 }
 

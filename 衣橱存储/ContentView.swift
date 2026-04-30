@@ -919,7 +919,15 @@ struct ContentView: View {
             viewModel.requireLocationPermission()
         case .permissionDenied, .locationServicesDisabled:
             viewModel.markLocationPermissionDenied()
-        case .locationUnavailable, .forecastUnavailable, .networkUnavailable, .invalidCityName, .cityNotFound, .cityLookupUnavailable, .weatherKitAccessDenied, .weatherKitUnavailable:
+        case .locationUnavailable,
+             .forecastUnavailable,
+             .networkUnavailable,
+             .invalidCityName,
+             .cityNotFound,
+             .cityLookupUnavailable,
+             .weatherKitAccessDenied,
+             .weatherKitUnavailable,
+             .forecastDateUnavailable:
             viewModel.markForecastUnavailable(error.userMessage)
         }
     }

@@ -16,6 +16,7 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
         case cityLookupUnavailable(String)
         case weatherKitAccessDenied
         case weatherKitUnavailable
+        case forecastDateUnavailable
 
         var userMessage: String {
             switch self {
@@ -41,6 +42,8 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
                 "Apple Weather 暂时拒绝了天气请求。请确认 App ID 的 App Services 和 App Capabilities 都已启用 WeatherKit，并重新 Archive 最新 TestFlight 构建。"
             case .weatherKitUnavailable:
                 "Apple Weather 暂时不可用，请稍后重试。"
+            case .forecastDateUnavailable:
+                "该日期暂时超出可预报范围，请选择更近的日期或稍后再试。"
             }
         }
     }
@@ -88,6 +91,20 @@ final class WeatherForecastService: NSObject, CLLocationManagerDelegate {
         return try await WeatherKitForecastClient.fetchTodayForecast(
             at: city.location,
             sourceTitle: city.sourceTitle
+        )
+    }
+
+    func fetchDailyForecast(cityName: String, targetDate: Date) async throws -> PlanWeatherSummary {
+        let trimmedCityName = cityName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedCityName.isEmpty else {
+            throw ForecastError.invalidCityName
+        }
+
+        let city = try await WeatherCityResolver.resolveCity(named: trimmedCityName)
+        return try await WeatherKitForecastClient.fetchDailyForecast(
+            at: city.location,
+            sourceTitle: city.sourceTitle,
+            targetDate: targetDate
         )
     }
 
@@ -279,6 +296,29 @@ private enum WeatherKitForecastClient {
             throw error
         } catch WeatherError.permissionDenied {
             WeatherForecastDiagnostics.logWeatherKitError(WeatherError.permissionDenied, context: "permissionDenied")
+            throw WeatherForecastService.ForecastError.weatherKitAccessDenied
+        } catch {
+            throw WeatherForecastErrorClassifier.weatherKitError(from: error)
+        }
+    }
+
+    static func fetchDailyForecast(
+        at location: CLLocation,
+        sourceTitle: String?,
+        targetDate: Date
+    ) async throws -> PlanWeatherSummary {
+        do {
+            let weather = try await WeatherService.shared.weather(for: location)
+            guard let day = weather.dailyForecast.forecast.first(where: {
+                Calendar.current.isDate($0.date, inSameDayAs: targetDate)
+            }) else {
+                throw WeatherForecastService.ForecastError.forecastDateUnavailable
+            }
+            return PlanWeatherSummary(day: day, sourceTitle: sourceTitle)
+        } catch let error as WeatherForecastService.ForecastError {
+            throw error
+        } catch WeatherError.permissionDenied {
+            WeatherForecastDiagnostics.logWeatherKitError(WeatherError.permissionDenied, context: "dailyPermissionDenied")
             throw WeatherForecastService.ForecastError.weatherKitAccessDenied
         } catch {
             throw WeatherForecastErrorClassifier.weatherKitError(from: error)
@@ -512,6 +552,27 @@ extension HomeDashboardViewModel.WeatherDaySnapshot {
         self.init(
             date: day.date,
             kind: condition.kind,
+            symbolName: day.symbolName,
+            high: roundedCelsius(day.highTemperature),
+            low: roundedCelsius(day.lowTemperature),
+            precipitationChance: percent(day.precipitationChance),
+            uvIndex: day.uvIndex.value,
+            windSpeed: roundedKPH(day.wind.speed)
+        )
+    }
+}
+
+extension PlanWeatherSummary {
+    nonisolated init(day: DayWeather, sourceTitle: String?) {
+        let condition = WeatherKitConditionMapper.condition(
+            for: day.condition,
+            windSpeed: roundedKPH(day.wind.speed)
+        )
+        let source = sourceTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        self.init(
+            date: day.date,
+            sourceTitle: source.isEmpty ? "Apple Weather" : source,
+            conditionTitle: condition.title,
             symbolName: day.symbolName,
             high: roundedCelsius(day.highTemperature),
             low: roundedCelsius(day.lowTemperature),

@@ -124,4 +124,45 @@ final class WeatherForecastServiceTests: XCTestCase {
             .permissionDenied
         )
     }
+
+    func testPlanWeatherSummarySuggestsOuterwearForTemperatureSwing() {
+        let summary = PlanWeatherSummary(
+            date: .now,
+            sourceTitle: "东京",
+            conditionTitle: "晴天",
+            symbolName: "sun.max",
+            high: 20,
+            low: 9,
+            precipitationChance: 5,
+            uvIndex: 3,
+            windSpeed: 8
+        )
+
+        XCTAssertEqual(summary.compactText, "晴天 20° / 9°")
+        XCTAssertEqual(summary.outfitHint, "早晚温差明显，外套或叠穿会更稳妥。")
+    }
+
+    func testPlanWeatherSummaryPrioritizesRainHint() {
+        let summary = PlanWeatherSummary(
+            date: .now,
+            sourceTitle: "伦敦",
+            conditionTitle: "小雨",
+            symbolName: "cloud.rain",
+            high: 18,
+            low: 11,
+            precipitationChance: 70,
+            uvIndex: 1,
+            windSpeed: 12
+        )
+
+        XCTAssertEqual(summary.detailText, "降水 70% · UV 1 · 风 12km/h")
+        XCTAssertEqual(summary.outfitHint, "建议带伞，鞋履优先选择耐脏或防滑款。")
+    }
+
+    func testForecastDateUnavailableMessageIsUserReadable() {
+        XCTAssertEqual(
+            WeatherForecastService.ForecastError.forecastDateUnavailable.userMessage,
+            "该日期暂时超出可预报范围，请选择更近的日期或稍后再试。"
+        )
+    }
 }

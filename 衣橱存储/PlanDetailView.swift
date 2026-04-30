@@ -22,6 +22,7 @@ struct PlanDetailView: View {
     @State private var showsDeleteConfirmation = false
     @State private var isSaving = false
     @State private var feedback: ActionFeedbackState?
+    @State private var planWeatherState: PlanWeatherLoadState = .idle
 
     init(plan: OutfitPlan) {
         self.plan = plan
@@ -42,6 +43,7 @@ struct PlanDetailView: View {
             VStack(alignment: .leading, spacing: 20) {
                 heroSection
                 planInfoSection
+                planWeatherSection
                 sameDayPlansSection
                 outfitSelectionSection
                 linkedOutfitSection
@@ -55,6 +57,15 @@ struct PlanDetailView: View {
             .padding(.bottom, 36)
         }
         .background(background)
+        .task {
+            await loadPlanWeatherIfPossible()
+        }
+        .onChange(of: date) { _, _ in
+            resetPlanWeatherState()
+        }
+        .onChange(of: weatherCityName) { _, _ in
+            resetPlanWeatherState()
+        }
         .navigationTitle("计划详情")
         .homeInlineNavigationTitle()
         .alert("删除这条计划？", isPresented: $showsDeleteConfirmation) {
@@ -172,6 +183,92 @@ struct PlanDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var planWeatherSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(title: "计划天气", subtitle: "WeatherKit")
+
+            switch planWeatherState {
+            case .loaded(let summary):
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: summary.symbolName)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.primary.opacity(0.86))
+                            .frame(width: 42, height: 42)
+                            .homeCardSurface(weight: .tertiary, cornerRadius: 21)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(summary.sourceTitle) · \(summary.compactText)")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(summary.detailText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer(minLength: 8)
+                    }
+
+                    Text(summary.outfitHint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(14)
+                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+
+            case .loading:
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("正在读取 \(planWeatherLookupCity) 的未来天气…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+
+            case .missingCity:
+                planWeatherEmptyMessage(
+                    title: "还没有天气城市",
+                    message: "填写天气城市后，可以查看计划日期的天气摘要。"
+                )
+
+            case .unavailable(let message):
+                VStack(alignment: .leading, spacing: 10) {
+                    planWeatherEmptyMessage(title: "天气暂不可用", message: message)
+
+                    Button {
+                        Task { await loadPlanWeatherIfPossible() }
+                    } label: {
+                        Label("重试", systemImage: "arrow.clockwise")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+
+            case .idle:
+                VStack(alignment: .leading, spacing: 10) {
+                    planWeatherEmptyMessage(
+                        title: "等待更新天气",
+                        message: "计划日期或城市刚刚修改，点击下方按钮刷新天气摘要。"
+                    )
+
+                    Button {
+                        Task { await loadPlanWeatherIfPossible() }
+                    } label: {
+                        Label("更新天气", systemImage: "cloud.sun")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(18)
+        .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
     }
 
     @ViewBuilder
@@ -486,6 +583,7 @@ struct PlanDetailView: View {
                     try modelContext.save()
                     feedback = .notificationResult(result)
                     isSaving = false
+                    Task { await loadPlanWeatherIfPossible() }
                 } catch {
                     showPersistenceFailure(title: "计划保存失败", error: error)
                     isSaving = false
@@ -638,6 +736,10 @@ struct PlanDetailView: View {
             .joined(separator: " · ")
     }
 
+    private var planWeatherLookupCity: String {
+        weatherCityName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var nextReuseDate: Date {
         let calendar = Calendar.current
         let sourceDay = calendar.startOfDay(for: date)
@@ -671,6 +773,56 @@ struct PlanDetailView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 14)
                 .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
+        }
+    }
+
+    private func planWeatherEmptyMessage(title: String, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
+    }
+
+    private func resetPlanWeatherState() {
+        planWeatherState = planWeatherLookupCity.isEmpty ? .missingCity : .idle
+    }
+
+    @MainActor
+    private func loadPlanWeatherIfPossible() async {
+        let cityName = planWeatherLookupCity
+        guard !cityName.isEmpty else {
+            planWeatherState = .missingCity
+            return
+        }
+
+        guard !planWeatherState.isLoading else { return }
+        planWeatherState = .loading
+        let lookupDate = date
+
+        do {
+            let summary = try await WeatherForecastService().fetchDailyForecast(
+                cityName: cityName,
+                targetDate: lookupDate
+            )
+            guard planWeatherLookupCity == cityName,
+                  Calendar.current.isDate(date, inSameDayAs: lookupDate)
+            else {
+                return
+            }
+            planWeatherState = .loaded(summary)
+        } catch {
+            guard planWeatherLookupCity == cityName,
+                  Calendar.current.isDate(date, inSameDayAs: lookupDate)
+            else {
+                return
+            }
+            planWeatherState = .unavailable(PlanWeatherLoadState.message(from: error))
         }
     }
 }
