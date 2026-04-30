@@ -1018,7 +1018,10 @@ struct ContentView: View {
         showsCreateOOTD = true
     }
 
-    private func startCreatePlanFlow(selectedOutfitID: PersistentIdentifier? = nil) {
+    private func startCreatePlanFlow(
+        selectedOutfitID: PersistentIdentifier? = nil,
+        selectedOutfit: OOTDOutfit? = nil
+    ) {
         openOOTDWorkspace(.plans)
 
         guard coreFlowReadiness.canCreatePlan else {
@@ -1047,7 +1050,11 @@ struct ContentView: View {
             return
         }
 
-        activePlanDraft = .blank(selectedOutfitID: selectedOutfitID ?? defaultPlanPresetID)
+        if let selectedOutfit {
+            activePlanDraft = .arrangingPreset(selectedOutfit)
+        } else {
+            activePlanDraft = .blank(selectedOutfitID: selectedOutfitID ?? defaultPlanPresetID)
+        }
     }
 
     private func openOOTDWorkspace(_ section: OOTDWorkspaceSection) {
@@ -1465,10 +1472,10 @@ struct ContentView: View {
                 .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
 
                 Button {
-                    startCreatePlanFlow(selectedOutfitID: outfit.persistentModelID)
+                    startCreatePlanFlow(selectedOutfit: outfit)
                     AppHaptics.selection()
                 } label: {
-                    Label("排到日期", systemImage: "calendar.badge.plus")
+                    Label("安排到日期", systemImage: "calendar.badge.plus")
                         .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)

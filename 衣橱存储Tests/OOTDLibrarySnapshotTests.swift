@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import 衣橱存储
 
@@ -51,6 +52,25 @@ final class OOTDLibrarySnapshotTests: XCTestCase {
         let text = OOTDPresetTag.normalizedText(from: "commute，通勤, 自定义标签, 自定义标签, very-long-custom-tag-name")
 
         XCTAssertEqual(OOTDPresetTag.normalizedTags(from: text), ["通勤", "自定义标签", "very-long-cu"])
+    }
+
+    func testPlanDraftFromPresetInfersDailyContext() {
+        let outfit = OOTDOutfit(title: "周一通勤", notes: "", presetTagsText: "通勤")
+        let draft = PlanCreationDraft.arrangingPreset(outfit)
+
+        XCTAssertEqual(draft.planKind, .daily)
+        XCTAssertEqual(draft.title, "周一通勤")
+        XCTAssertEqual(draft.occasion, "通勤")
+        XCTAssertEqual(draft.selectedOutfitID, outfit.persistentModelID)
+        XCTAssertTrue(draft.notes.contains("OOTD 预设"))
+    }
+
+    func testPlanDraftFromPresetInfersSpecialAndTripContexts() {
+        let formalOutfit = OOTDOutfit(title: "婚礼穿搭", notes: "", presetTagsText: "仪式")
+        let travelOutfit = OOTDOutfit(title: "东京出行", notes: "", presetTagsText: "旅行")
+
+        XCTAssertEqual(PlanCreationDraft.arrangingPreset(formalOutfit).planKind, .specialEvent)
+        XCTAssertEqual(PlanCreationDraft.arrangingPreset(travelOutfit).planKind, .trip)
     }
 
     private func makeItem(name: String, category: String) -> WardrobeItem {

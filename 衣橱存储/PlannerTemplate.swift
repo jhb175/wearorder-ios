@@ -33,6 +33,56 @@ struct PlanCreationDraft: Identifiable {
             reminderTime: reminderTime
         )
     }
+
+    static func arrangingPreset(
+        _ outfit: OOTDOutfit,
+        calendar: Calendar = .current
+    ) -> PlanCreationDraft {
+        let date = calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
+        let reminderTime = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: date) ?? date
+        let planKind = inferredPlanKind(for: outfit)
+        let occasion = inferredOccasion(for: outfit, planKind: planKind)
+        let title = outfit.title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return PlanCreationDraft(
+            selectedOutfitID: outfit.persistentModelID,
+            planKind: planKind,
+            title: title.isEmpty ? planKind.defaultTitle : title,
+            occasion: occasion,
+            locationName: "",
+            weatherCityName: "",
+            notes: "从 OOTD 预设快速安排。",
+            date: date,
+            reminderEnabled: true,
+            reminderTime: reminderTime
+        )
+    }
+
+    private static func inferredPlanKind(for outfit: OOTDOutfit) -> OutfitPlanKind {
+        let tags = Set(outfit.presetTags)
+        if tags.contains(OOTDPresetTag.travel.title) {
+            return .trip
+        }
+
+        let specialTags: Set<String> = [
+            OOTDPresetTag.date.title,
+            OOTDPresetTag.formal.title,
+            OOTDPresetTag.party.title,
+            OOTDPresetTag.ceremony.title
+        ]
+        if !tags.isDisjoint(with: specialTags) {
+            return .specialEvent
+        }
+
+        return .daily
+    }
+
+    private static func inferredOccasion(for outfit: OOTDOutfit, planKind: OutfitPlanKind) -> String {
+        if let firstTag = outfit.presetTags.first {
+            return firstTag
+        }
+        return planKind.defaultOccasion
+    }
 }
 
 enum PlannerQuickTemplate: String, CaseIterable, Identifiable {

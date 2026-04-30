@@ -45,7 +45,7 @@ struct OOTDDetailView: View {
         }
         .sheet(isPresented: $showsCreatePlan) {
             NavigationStack {
-                CreatePlanView(initialSelectedOutfitID: outfit.persistentModelID, suggestedTitle: outfit.title + " · 计划") { plan, notificationResult in
+                CreatePlanView(draft: .arrangingPreset(outfit)) { plan, notificationResult in
                     feedback = .planSaved(plan, notificationResult: notificationResult)
                 }
             }
@@ -207,7 +207,7 @@ struct OOTDDetailView: View {
                     Button {
                         showsCreatePlan = true
                     } label: {
-                        Label("排到日期", systemImage: "calendar.badge.plus")
+                        Label("安排到日期", systemImage: "calendar.badge.plus")
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -280,7 +280,7 @@ struct OOTDDetailView: View {
             Button {
                 showsCreatePlan = true
             } label: {
-                Label("排到日期", systemImage: "calendar.badge.plus")
+                Label("安排到日期", systemImage: "calendar.badge.plus")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -404,6 +404,7 @@ struct OOTDDetailView: View {
         let duplicatedOutfit = OOTDOutfit(
             title: outfit.title + " 副本",
             notes: outfit.notes,
+            presetTagsText: outfit.presetTagsText,
             isToday: false,
             sourceKind: outfit.sourceKind,
             aiPrompt: outfit.aiPrompt,

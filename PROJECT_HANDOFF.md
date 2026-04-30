@@ -22,7 +22,7 @@ open 衣橱存储.xcodeproj
 
 - `Signing & Capabilities` 里的 Team 是否选择付费开发者团队。
 - iCloud / CloudKit、WeatherKit、Sign in with Apple 是否仍开启。
-- 上传 TestFlight 前递增 Build Number。当前准备版本是 `1.0.0 (12)`，下一次重新上传建议递增到 `(13)`。
+- 上传 TestFlight 前递增 Build Number。当前准备版本是 `1.0.0 (13)`，下一次重新上传建议递增到 `(14)`。
 
 4. 新 Codex 会话可以直接说：
 
@@ -92,7 +92,7 @@ xcodebuild test \
 - 普通朋友测试建议走外部测试组；外部测试需要 Beta App Review。
 - 外部测试审核通过后，测试员通过 TestFlight 邀请安装。
 - 每次重新上传都要增加 Build Number；Marketing Version 可以先保持 `1.0.0`。
-- 当前工程 Build Number 是 `12`；如果 App Store Connect 已经有 `(12)`，下一包改为 `13`。
+- 当前工程 Build Number 是 `13`；如果 App Store Connect 已经有 `(13)`，下一包改为 `14`。
 - WeatherKit 后台开通后，必须重新 Archive 并安装新的 TestFlight build；旧包不会自动获得新的 entitlement。
 - 如果天气仍失败，先区分提示：`网络不可用` 通常是设备网络/地理编码网络问题；`Apple Weather 暂时拒绝了天气请求` 通常是 App ID 的 App Services / App Capabilities、Xcode Capability 或 provisioning profile 没刷新，或安装的仍是旧 TestFlight 包。
 
@@ -101,10 +101,11 @@ xcodebuild test \
 - 当前代码已把 1-6 作为验证基线，再继续实现 7-10。
 - 7：OOTD 预设库增加标签字段，创建/编辑 OOTD 时可选择通勤、休闲、周末、约会、正式、运动、旅行、聚会、仪式、校园，也支持自定义标签。
 - 7：OOTD 页支持按标签筛选，并支持最近更新、名称、使用次数排序；创建计划时的预设搜索会覆盖预设标签。
+- 7/9：从 OOTD 预设卡片或详情页可直接“安排到日期”，会自动推断日常、特别日或旅行类型；如果同日已有计划，保存时会提示新增不覆盖。
 - 8：计划新增 `locationName` 和 `weatherCityName`，日常、特殊日子、旅行会展示不同字段文案，为后续 MapKit 地点选择和未来天气做准备。
 - 9：导出报告、备份恢复和数据修复已兼容预设标签、地点、天气城市字段，后续 AI Pro 可以读取这些上下文生成未来 OOTD。
 - 10：新增/更新单元测试覆盖预设标签标准化，以及备份恢复中的预设标签、地点和天气城市。
-- 当前准备上传测试的建议版本：`1.0.0 (12)`。若继续修改后再打包，请递增 Build Number。
+- 当前准备上传测试的建议版本：`1.0.0 (13)`。若继续修改后再打包，请递增 Build Number。
 
 ## 2026-04-29 天气与测试记录
 

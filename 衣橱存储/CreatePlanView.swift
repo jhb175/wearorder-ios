@@ -5,6 +5,7 @@ struct CreatePlanView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \OOTDOutfit.createdAt, order: .reverse) private var outfits: [OOTDOutfit]
+    @Query(sort: \OutfitPlan.date) private var plans: [OutfitPlan]
 
     @State private var selectedPlanKind: OutfitPlanKind = .daily
     @State private var title = "新的穿搭计划"
@@ -54,9 +55,9 @@ struct CreatePlanView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("新建穿搭计划")
+                    Text(showsPreselectedHint ? "安排 OOTD 到日期" : "新建穿搭计划")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Text("选一个日期，再套用一套 OOTD 预设。同一套预设可以重复安排到不同日期。")
+                    Text(showsPreselectedHint ? "这套 OOTD 会作为预设保存，你只需要选日期、场景和提醒。" : "选一个日期，再套用一套 OOTD 预设。同一套预设可以重复安排到不同日期。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -74,7 +75,7 @@ struct CreatePlanView: View {
             .padding(.bottom, 36)
         }
         .background(background)
-        .navigationTitle("新建计划")
+        .navigationTitle(showsPreselectedHint ? "安排日期" : "新建计划")
         .homeInlineNavigationTitle()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -84,7 +85,7 @@ struct CreatePlanView: View {
             }
 
             ToolbarItem(placement: .confirmationAction) {
-                Button(isSaving ? "保存中…" : "保存") {
+                Button(isSaving ? "保存中…" : (showsPreselectedHint ? "安排" : "保存")) {
                     savePlan()
                 }
                 .disabled(!canSave || isSaving)
@@ -129,8 +130,32 @@ struct CreatePlanView: View {
                     .datePickerStyle(.graphical)
                     .padding(12)
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
+
+                if !plansOnSelectedDate.isEmpty {
+                    sameDayPlanNotice
+                }
             }
         }
+    }
+
+    private var sameDayPlanNotice: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary.opacity(0.82))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("这一天已有 \(plansOnSelectedDate.count) 条计划")
+                    .font(.caption.weight(.semibold))
+                Text("保存后会新增一条安排，不会覆盖原计划。之后可在计划详情里调整或删除。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.orange.opacity(0.10))
     }
 
     private var planKindPicker: some View {
@@ -408,7 +433,7 @@ struct CreatePlanView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text("已自动套用预设")
                     .font(.subheadline.weight(.semibold))
-                Text("当前正在把“\(outfit.title)”排到日期里，你可以直接选日期并保存。")
+                Text("当前正在把“\(outfit.title)”安排到日期里，可重复使用，不会影响原 OOTD。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -436,6 +461,10 @@ struct CreatePlanView: View {
                 .joined(separator: " ")
             return searchableText.localizedCaseInsensitiveContains(query)
         }
+    }
+
+    private var plansOnSelectedDate: [OutfitPlan] {
+        plans.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
     }
 
     private var displayedOutfits: [OOTDOutfit] {
