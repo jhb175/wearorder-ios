@@ -307,12 +307,7 @@ private struct WeatherAtmosphereLayer: View {
 
     var body: some View {
         ZStack {
-            if isAnimationActive {
-                WeatherAnimationView(kind: weather.kind, isActive: true)
-                    .opacity(1.0)
-            } else {
-                staticAtmosphere
-            }
+            WeatherScene(kind: weather.kind, isActive: isAnimationActive)
 
             LinearGradient(
                 colors: [
@@ -338,62 +333,6 @@ private struct WeatherAtmosphereLayer: View {
 
                 Spacer()
             }
-        }
-    }
-
-    private var staticAtmosphere: some View {
-        ZStack {
-            LinearGradient(
-                colors: staticAtmosphereColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Image(systemName: weather.symbolName ?? weather.kind.symbolName)
-                .font(.system(size: 118, weight: .light))
-                .foregroundStyle(.white.opacity(0.30))
-                .offset(x: 86, y: -42)
-
-            Circle()
-                .fill(Color.white.opacity(0.24))
-                .frame(width: 190, height: 190)
-                .opacity(0.42)
-                .offset(x: 100, y: -76)
-        }
-    }
-
-    private var staticAtmosphereColors: [Color] {
-        switch weather.kind {
-        case .sunny:
-            [
-                Color(red: 0.58, green: 0.76, blue: 0.92),
-                Color(red: 0.92, green: 0.88, blue: 0.72),
-                Color(red: 0.80, green: 0.88, blue: 0.92)
-            ]
-        case .partlyCloudy:
-            [
-                Color(red: 0.58, green: 0.72, blue: 0.86),
-                Color(red: 0.82, green: 0.88, blue: 0.90),
-                Color(red: 0.72, green: 0.81, blue: 0.86)
-            ]
-        case .windy:
-            [
-                Color(red: 0.58, green: 0.67, blue: 0.76),
-                Color(red: 0.74, green: 0.82, blue: 0.86),
-                Color(red: 0.65, green: 0.73, blue: 0.78)
-            ]
-        case .overcast, .drizzle, .snow:
-            [
-                Color(red: 0.60, green: 0.68, blue: 0.76),
-                Color(red: 0.76, green: 0.82, blue: 0.86),
-                Color(red: 0.66, green: 0.73, blue: 0.78)
-            ]
-        case .heavyRain, .thunderstorm:
-            [
-                Color(red: 0.36, green: 0.43, blue: 0.54),
-                Color(red: 0.54, green: 0.62, blue: 0.70),
-                Color(red: 0.42, green: 0.48, blue: 0.58)
-            ]
         }
     }
 }
