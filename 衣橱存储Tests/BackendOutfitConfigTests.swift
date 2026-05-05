@@ -38,12 +38,23 @@ final class BackendOutfitConfigTests: XCTestCase {
 
     func testRuntimeOverrideRejectsInvalidScheme() {
         BackendOutfitConfig.setRuntimeBaseURLOverride("ftp://api.example.com")
-        XCTAssertNil(BackendOutfitConfig.baseURL, "Only http/https URLs should be accepted")
+        // The override is rejected (sanitize) — baseURL must NOT
+        // surface ftp://. It may fall back to Info.plist (which is
+        // a valid http/https URL) or return nil if Info.plist is
+        // empty. Either is acceptable.
+        XCTAssertNotEqual(BackendOutfitConfig.baseURL?.scheme?.lowercased(), "ftp")
+        XCTAssertNotEqual(
+            BackendOutfitConfig.baseURL?.absoluteString,
+            "ftp://api.example.com"
+        )
     }
 
     func testRuntimeOverrideRejectsEmptyString() {
         BackendOutfitConfig.setRuntimeBaseURLOverride("")
-        XCTAssertNil(BackendOutfitConfig.baseURL)
+        // Empty override clears UserDefaults; baseURL falls through
+        // to Info.plist (or nil). The contract is "empty input is
+        // not stored", not "baseURL is nil after this".
+        XCTAssertNil(UserDefaults.standard.string(forKey: userDefaultsKey))
     }
 
     func testRuntimeOverrideClearAfterSet() {

@@ -26,6 +26,21 @@
 	<string>public.app-category.lifestyle</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>WEARORDER_AI_BASE_URL</key>
+	<string>http://43.142.4.108</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>43.142.4.108</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>用于拍摄衣物照片并保存到本地衣橱，照片只保存在本机。</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
