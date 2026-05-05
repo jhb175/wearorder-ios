@@ -1,0 +1,10 @@
+.git
+.gitignore
+README.md
+deploy/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.DS_Store
+wearorder-api
