@@ -37,20 +37,43 @@ enum AIAvailability {
         #endif
     }
 
-    /// Whether the AI entry point should be exposed in UI.
+    /// Whether the AI entry point should be exposed in UI. True when
+    /// either the on-device model is ready OR a backend is configured
+    /// (cloud fallback covers users on iOS < 26 or without Apple
+    /// Intelligence — i.e. most of the user base).
     static var isAvailable: Bool {
+        if case .available = current { return true }
+        if BackendOutfitConfig.isConfigured { return true }
+        return false
+    }
+
+    /// Whether on-device generation specifically can run. Used by the
+    /// router to prefer on-device when both paths are available.
+    static var isOnDeviceAvailable: Bool {
         if case .available = current { return true }
         return false
     }
 
+    /// Whether cloud fallback is available. True if a backend URL is
+    /// configured; we don't ping the server here — that happens lazily
+    /// on the first call.
+    static var isCloudAvailable: Bool {
+        BackendOutfitConfig.isConfigured
+    }
+
     static var disabledMessage: String {
+        // If cloud is configured, on-device unavailability isn't
+        // user-visible — they'll just go via the cloud transparently.
+        if BackendOutfitConfig.isConfigured {
+            return ""
+        }
         switch current {
         case .available:
             return ""
         case .unavailable(let reason):
             return reason
         case .needsNewerOS:
-            return "AI 搭配师需要 iOS 26 及以上版本。"
+            return "AI 搭配师需要 iOS 26 及以上版本，或等待云端服务上线。"
         }
     }
 

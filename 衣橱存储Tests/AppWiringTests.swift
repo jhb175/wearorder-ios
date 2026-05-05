@@ -67,13 +67,24 @@ final class AppWiringTests: XCTestCase {
     func testAIStylistEntryIsGatedOffInProductionBuild() {
         // INTERNAL_TOOLS unconditionally exposes the entry point for dev
         // builds. In production builds the gate falls back to
-        // `AIAvailability.isAvailable`, which requires iOS 26 + Apple
-        // Intelligence — neither holds in the iOS 17 simulator harness, so
-        // the entry must remain hidden.
+        // `AIAvailability.isAvailable`, which is true if EITHER iOS 26 +
+        // Apple Intelligence are ready OR a cloud backend URL is
+        // configured. We force-clear the runtime cloud override here so
+        // the test matches a "fresh install on simulator" state, where
+        // neither path is available and the entry must stay hidden.
+        BackendOutfitConfig.setRuntimeBaseURLOverride(nil)
+        defer { BackendOutfitConfig.setRuntimeBaseURLOverride(nil) }
+
         #if INTERNAL_TOOLS
         XCTAssertTrue(AppReleaseInfo.allowsAIStylistEntry)
         #else
-        XCTAssertFalse(AppReleaseInfo.allowsAIStylistEntry)
+        // Only assert false when no Info.plist baked-in URL exists.
+        // (Build configs may inject one for ad-hoc / TestFlight.) When
+        // a URL IS baked in, the entry is correctly visible and we
+        // skip the assertion.
+        if !BackendOutfitConfig.isConfigured {
+            XCTAssertFalse(AppReleaseInfo.allowsAIStylistEntry)
+        }
         #endif
     }
 
@@ -117,8 +128,10 @@ final class AppWiringTests: XCTestCase {
             // Diagnostics
             DiagnosticsStorage.self,
             MetricKitObserver.self,
-            // AI Stylist (Sprint 3.1)
-            AIOutfitGenerator.self
+            // AI Stylist (Sprint 3.1 + 3.1.5)
+            AIOutfitGenerator.self,
+            OnDeviceOutfitProvider.self,
+            CloudOutfitProvider.self
         ]
         XCTAssertFalse(symbolBag.isEmpty)
     }
