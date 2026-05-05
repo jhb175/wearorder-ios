@@ -180,17 +180,65 @@ func (a *App) handleGenerateOutfit(w http.ResponseWriter, r *http.Request) {
 	// non-zero value, but format compliance dominates the tradeoff.
 	temperature := 0.3
 
-	// Try providers in priority order. Surface the first valid result.
+	// Try providers in priority order. Each provider gets up to 2
+	// attempts on validation failure (LLMs occasionally hallucinate
+	// IDs or emit malformed JSON). Provider errors don't retry on the
+	// same provider — those are usually upstream issues that won't
+	// fix in 2 seconds.
+	const maxAttemptsPerProvider = 2
+
+	// Slightly higher temperature on retry — same prompt + same temp
+	// likely produces the same broken output. A bump nudges the model
+	// to a different sample.
+	retryTemperature := temperature + 0.3
+
 	var lastErr error
 	for _, p := range providers {
-		start := time.Now()
-		genResult, err := p.Generate(r.Context(), systemPrompt, userPrompt, GenerateOptions{
-			JSONMode:    true,
-			Timeout:     timeout,
-			MaxTokens:   &maxTokens,
-			Temperature: &temperature,
-		})
-		latency := int(time.Since(start).Milliseconds())
+		var (
+			genResult     *GenerateResult
+			err           error
+			latency       int
+			validateErr   error
+			out           *llmOutput
+			tempUsed      = temperature
+			lastValidatedAttempt int
+		)
+
+		for attempt := 1; attempt <= maxAttemptsPerProvider; attempt++ {
+			if attempt > 1 {
+				tempUsed = retryTemperature
+			}
+			start := time.Now()
+			genResult, err = p.Generate(r.Context(), systemPrompt, userPrompt, GenerateOptions{
+				JSONMode:    true,
+				Timeout:     timeout,
+				MaxTokens:   &maxTokens,
+				Temperature: &tempUsed,
+			})
+			latency = int(time.Since(start).Milliseconds())
+
+			if err != nil {
+				// Provider-level errors (network, 5xx) — don't retry
+				// the same provider, jump to the next.
+				break
+			}
+
+			out, validateErr = validateLLMOutput(genResult.Content, &req)
+			if validateErr == nil {
+				break // success
+			}
+			// Off-topic is a final answer — never retry, never fall
+			// through to the next provider.
+			if errors.Is(validateErr, ErrOffTopic) {
+				lastValidatedAttempt = attempt
+				break
+			}
+			// Otherwise (hallucinated ID, malformed JSON, slot
+			// mismatch) — log this attempt and let the loop retry.
+			lastValidatedAttempt = attempt
+		}
+
+		_ = lastValidatedAttempt // silence unused if we want to log it later
 
 		if err != nil {
 			_ = a.Store.RecordCall(&CallLog{
@@ -205,8 +253,6 @@ func (a *App) handleGenerateOutfit(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Validate the LLM output against the candidate pool.
-		out, validateErr := validateLLMOutput(genResult.Content, &req)
 		if validateErr != nil {
 			// Off-topic refusal is a successful interaction — log it
 			// distinctly, don't retry against other providers, and

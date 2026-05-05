@@ -147,11 +147,61 @@ final class AIWardrobeContextTests: XCTestCase {
         XCTAssertFalse(context.isCandidate(shoes, forSlotKey: "top"))
     }
 
+    // MARK: - Season filtering
+
+    func testSeasonFilterKeepsAllSeasonItemsAndMatchingSeason() {
+        let summerTop = makeItem(name: "T恤", category: "上装", season: "春夏")
+        let winterTop = makeItem(name: "毛衣", category: "上装", season: "秋冬")
+        let allSeasonTop = makeItem(name: "白衬衫", category: "上装", season: "四季")
+
+        let context = AIWardrobeContextBuilder.build(
+            userPrompt: "",
+            weather: nil,
+            season: .springSummer,
+            items: [summerTop, winterTop, allSeasonTop]
+        )
+
+        let topIDs = (context.candidatesBySlot["top"] ?? []).map(\.id)
+        XCTAssertTrue(topIDs.contains(summerTop.id))
+        XCTAssertTrue(topIDs.contains(allSeasonTop.id), "四季 items must always be eligible")
+        XCTAssertFalse(topIDs.contains(winterTop.id), "冬装 items must drop out in 春夏")
+    }
+
+    func testSeasonInferenceFromWeather() {
+        // Cold winter day → autumnWinter pool.
+        let cold = HomeDashboardViewModel.WeatherSnapshot(
+            kind: .snow, temperature: 2, apparentTemperature: -1,
+            high: 5, low: -2, humidity: 40, windSpeed: 5,
+            uvIndex: nil, precipitationChance: 80
+        )
+        XCTAssertEqual(AIOutfitGenerator.currentSeason(for: cold), .autumnWinter)
+
+        // Spring transitional day.
+        let mild = HomeDashboardViewModel.WeatherSnapshot(
+            kind: .partlyCloudy, temperature: 14, apparentTemperature: 13,
+            high: 16, low: 9, humidity: 50, windSpeed: 8,
+            uvIndex: 4, precipitationChance: 10
+        )
+        XCTAssertEqual(AIOutfitGenerator.currentSeason(for: mild), .springAutumn)
+
+        // Hot summer day.
+        let hot = HomeDashboardViewModel.WeatherSnapshot(
+            kind: .sunny, temperature: 32, apparentTemperature: 35,
+            high: 34, low: 25, humidity: 70, windSpeed: 3,
+            uvIndex: 9, precipitationChance: 0
+        )
+        XCTAssertEqual(AIOutfitGenerator.currentSeason(for: hot), .springSummer)
+
+        // Nil weather → don't over-filter.
+        XCTAssertEqual(AIOutfitGenerator.currentSeason(for: nil), .all)
+    }
+
     // MARK: - Helper
 
     private func makeItem(
         name: String,
         category: String,
+        season: String = "四季",
         isFavorite: Bool = false,
         createdAt: Date = Date(timeIntervalSince1970: 1_800_000_000)
     ) -> WardrobeItem {
@@ -160,7 +210,7 @@ final class AIWardrobeContextTests: XCTestCase {
             name: name,
             category: category,
             colorName: "白色",
-            season: "四季",
+            season: season,
             imageSymbol: "tshirt.fill",
             styleTagsText: "通勤, 简洁",
             isFavorite: isFavorite,

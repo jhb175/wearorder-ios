@@ -58,6 +58,7 @@ final class AIOutfitGenerator {
         let context = AIWardrobeContextBuilder.build(
             userPrompt: userPrompt,
             weather: weather,
+            season: Self.currentSeason(for: weather),
             items: items
         )
 
@@ -69,6 +70,40 @@ final class AIOutfitGenerator {
 
         let provider = try resolveProvider()
         return try await provider.generate(context: context)
+    }
+
+    // MARK: - Season inference
+
+    /// Maps a `WeatherSnapshot` to the wardrobe season that's most
+    /// appropriate to draw candidates from. Uses the day's high
+    /// temperature when available (otherwise current temperature),
+    /// because users dress for the warmest part of the day.
+    ///
+    /// Thresholds err toward overlap — e.g. 18°C still includes both
+    /// `.springAutumn` AND `.springSummer` candidates because real
+    /// people dress flexibly in transitional weather. This is achieved
+    /// by `matchesSeason` always letting `.all`-tagged items through.
+    ///
+    /// Returns `.all` when there's no weather signal so we don't
+    /// accidentally over-filter the candidate pool to nothing.
+    static func currentSeason(
+        for weather: HomeDashboardViewModel.WeatherSnapshot?
+    ) -> ClothingSeason {
+        guard let weather else { return .all }
+        // Use the high if it's reasonable, otherwise the current temp.
+        // Some forecasts return high == low when missing.
+        let temp: Int
+        if weather.high > weather.low {
+            temp = weather.high
+        } else {
+            temp = weather.temperature
+        }
+        switch temp {
+        case ..<10:  return .autumnWinter
+        case 10..<18: return .springAutumn
+        case 18..<26: return .springSummer
+        default:     return .springSummer  // > 26°C is firmly summer
+        }
     }
 
     // MARK: - Provider resolution
