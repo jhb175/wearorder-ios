@@ -162,20 +162,23 @@ func (a *App) handleGenerateOutfit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	systemPrompt := buildSystemPrompt()
+	systemPrompt := buildSystemPromptV2()
 	userPrompt := buildUserPrompt(&req)
 	timeout := time.Duration(a.Config.RequestTimeoutSec) * time.Second
 	if timeout <= 0 {
 		timeout = 60 * time.Second
 	}
 
-	// 400 tokens is plenty for a 6-12-char title + 30-60-char reason
-	// + 6 UUIDs. Hard cap protects us from a runaway model emitting
-	// an essay even when the system prompt forbids it.
-	maxTokens := 400
-	// Slightly higher temperature so "再生成一套" actually varies.
-	// Most vendors clamp to [0,2]; 0.8 is a safe middle.
-	temperature := 0.8
+	// Some proxy endpoints (and "thinking" variants of newer models
+	// like deepseek-v3.2) reason out loud before they emit JSON. If
+	// max_tokens is too tight the JSON gets truncated mid-reasoning
+	// and we never see a valid object. 1500 tokens is enough for any
+	// reasoning preamble + a 200-token outfit JSON.
+	maxTokens := 1500
+	// Lower temperature pushes the model toward deterministic format
+	// adherence. Variety on "再生成一套" is still preserved by the
+	// non-zero value, but format compliance dominates the tradeoff.
+	temperature := 0.3
 
 	// Try providers in priority order. Surface the first valid result.
 	var lastErr error
