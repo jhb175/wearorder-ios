@@ -25,12 +25,7 @@ struct WeatherCloudSystem: View {
     private func drawLayer(_ layer: CloudLayer, in context: GraphicsContext, size: CGSize) {
         let specs = clouds(for: layer)
         for spec in specs {
-            let drift = CGFloat(sin(time * layer.speed * palette.windSpeed + spec.phase))
-            let bob = CGFloat(cos(time * layer.speed * 0.62 * palette.windSpeed + spec.phase))
-            let center = CGPoint(
-                x: size.width * spec.x + drift * size.width * layer.amplitude,
-                y: size.height * spec.y + bob * size.height * 0.012
-            )
+            let center = cloudCenter(for: spec, layer: layer, size: size)
 
             drawCumulus(
                 in: context,
@@ -40,6 +35,29 @@ struct WeatherCloudSystem: View {
                 opacity: spec.opacity * palette.cloudOpacity * layer.opacityMultiplier,
                 blur: layer.blur,
                 tint: palette.cloudTint
+            )
+        }
+    }
+
+    private func cloudCenter(for spec: CloudSpec, layer: CloudLayer, size: CGSize) -> CGPoint {
+        if palette.kind == .windy {
+            // Wind: clouds stream left-to-right and wrap. Far layers slow,
+            // near layers fast — visible parallax. spec.x is ignored for x;
+            // phase distributes clouds along the cycle so they're spread out.
+            let cycleWidth = size.width * 1.7
+            let pxPerSec = layer.linearDriftSpeed
+            let phaseOffset = (spec.phase / (.pi * 2)) * cycleWidth
+            let raw = time * Double(pxPerSec) + phaseOffset
+            let traveled = raw.truncatingRemainder(dividingBy: Double(cycleWidth))
+            let x = -size.width * 0.35 + CGFloat(traveled)
+            let yBob = CGFloat(cos(time * 0.6 + spec.phase)) * size.height * 0.012
+            return CGPoint(x: x, y: size.height * spec.y + yBob)
+        } else {
+            let drift = CGFloat(sin(time * layer.speed * palette.windSpeed + spec.phase))
+            let bob = CGFloat(cos(time * layer.speed * 0.62 * palette.windSpeed + spec.phase))
+            return CGPoint(
+                x: size.width * spec.x + drift * size.width * layer.amplitude,
+                y: size.height * spec.y + bob * size.height * 0.012
             )
         }
     }
@@ -238,18 +256,28 @@ struct WeatherCloudSystem: View {
                 ]
             }
         case .windy:
+            // In windy mode spec.x is ignored (clouds stream linearly), but
+            // y, size, opacity and phase still matter. Phase is evenly
+            // spaced so the stream is continuous instead of clumping.
             switch layer {
             case .far:
                 return [
-                    CloudSpec(x: 0.24, y: 0.22, width: 0.40, height: 0.16, opacity: 0.40, phase: 0.4),
-                    CloudSpec(x: 0.86, y: 0.26, width: 0.42, height: 0.14, opacity: 0.36, phase: 1.6)
+                    CloudSpec(x: 0, y: 0.16, width: 0.36, height: 0.16, opacity: 0.40, phase: 0.0),
+                    CloudSpec(x: 0, y: 0.22, width: 0.40, height: 0.14, opacity: 0.36, phase: .pi * 0.5),
+                    CloudSpec(x: 0, y: 0.18, width: 0.34, height: 0.16, opacity: 0.32, phase: .pi),
+                    CloudSpec(x: 0, y: 0.26, width: 0.38, height: 0.14, opacity: 0.34, phase: .pi * 1.5)
                 ]
             case .mid:
                 return [
-                    CloudSpec(x: 0.50, y: 0.46, width: 0.44, height: 0.18, opacity: 0.56, phase: 1.0)
+                    CloudSpec(x: 0, y: 0.42, width: 0.42, height: 0.18, opacity: 0.58, phase: 0.0),
+                    CloudSpec(x: 0, y: 0.48, width: 0.46, height: 0.20, opacity: 0.62, phase: .pi * 0.66),
+                    CloudSpec(x: 0, y: 0.46, width: 0.40, height: 0.18, opacity: 0.50, phase: .pi * 1.32)
                 ]
             case .near:
-                return []
+                return [
+                    CloudSpec(x: 0, y: 0.68, width: 0.50, height: 0.22, opacity: 0.40, phase: 0.0),
+                    CloudSpec(x: 0, y: 0.72, width: 0.46, height: 0.20, opacity: 0.36, phase: .pi)
+                ]
             }
         case .snow:
             switch layer {
@@ -288,6 +316,16 @@ struct WeatherCloudSystem: View {
             case .far: 0.07
             case .mid: 0.10
             case .near: 0.13
+            }
+        }
+
+        /// Pixels per second of left-to-right drift in the linear (windy)
+        /// regime. Layered for parallax: far slow, near fast.
+        var linearDriftSpeed: CGFloat {
+            switch self {
+            case .far: 22
+            case .mid: 38
+            case .near: 56
             }
         }
 
