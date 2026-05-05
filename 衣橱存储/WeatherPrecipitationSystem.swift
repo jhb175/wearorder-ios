@@ -26,13 +26,18 @@ struct WeatherPrecipitationSystem: View {
         let count = palette.rainParticleCount
         guard count > 0 else { return }
 
+        // Slope grows with intensity: drizzle barely angled, thunderstorm
+        // markedly slanted (driven by storm wind).
+        let backSlope: CGFloat = 6 + 18 * CGFloat(intensity)
+        let frontSlope: CGFloat = 8 + 22 * CGFloat(intensity)
+
         // Two passes: back layer (slower, blurred), front layer (sharper).
         drawRainPass(
             in: context, size: size,
             count: max(count / 2, 6),
             xStart: 0.36, xSpan: 0.56,
             speed: 220, length: 28,
-            slope: 12, sway: 3.2,
+            slope: backSlope, sway: 3.2,
             lineWidth: 0.9,
             alpha: 0.18 * intensity,
             blur: 1.4
@@ -42,7 +47,7 @@ struct WeatherPrecipitationSystem: View {
             count: count,
             xStart: 0.36, xSpan: 0.56,
             speed: 280, length: 36,
-            slope: 14, sway: 2.4,
+            slope: frontSlope, sway: 2.4,
             lineWidth: 1.2,
             alpha: 0.42 * intensity,
             blur: 0

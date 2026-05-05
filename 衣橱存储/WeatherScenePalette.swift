@@ -157,16 +157,17 @@ struct WeatherScenePalette {
 
     var windStreaks: Bool { kind == .windy }
 
-    /// Global "wind drift" multiplier. Used by clouds to drift faster
-    /// in windy conditions and slower in calm.
-    var windSpeed: Double {
+    /// Per-kind multiplier on the cloud system's base linear drift
+    /// speed. All cloud layers stream left-to-right; the multiplier
+    /// just controls how fast. Higher = more wind.
+    var cloudDriftMultiplier: Double {
         switch kind {
-        case .sunny, .partlyCloudy: 1.0
-        case .overcast, .drizzle: 0.84
-        case .heavyRain: 1.6
-        case .thunderstorm: 1.8
-        case .windy: 2.6
-        case .snow: 0.66
+        case .sunny, .partlyCloudy: 0.45
+        case .overcast, .drizzle: 0.60
+        case .snow: 0.50
+        case .heavyRain: 0.78
+        case .thunderstorm: 0.86
+        case .windy: 1.0
         }
     }
 
