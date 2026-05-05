@@ -1,0 +1,37 @@
+{{define "content"}}
+<h1>调用日志</h1>
+<p class="muted">最近 200 条调用记录。状态字段：<code>ok</code> 成功 / <code>provider_error</code> 上游报错 / <code>invalid_output</code> LLM 输出无法解析或越界 / <code>rate_limited</code> 命中限流 / <code>bad_request</code> 客户端请求格式错误。</p>
+
+{{if .Data}}
+<table class="data-table compact">
+  <thead>
+    <tr>
+      <th>时间</th>
+      <th>状态</th>
+      <th>provider</th>
+      <th>设备</th>
+      <th>延迟</th>
+      <th>tokens</th>
+      <th>prompt</th>
+      <th>错误</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Data}}
+    <tr>
+      <td class="small">{{formatTime .CreatedAt}}</td>
+      <td>{{statusBadge .Status}}</td>
+      <td>{{.ProviderName}}</td>
+      <td class="mono small">{{truncate .DeviceID 8}}</td>
+      <td class="small">{{.LatencyMs}}ms</td>
+      <td class="small">{{.PromptTokens}}+{{.CompletionTokens}}</td>
+      <td class="small">{{truncate .UserPrompt 60}}</td>
+      <td class="small err-text">{{truncate .ErrorMessage 80}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty">暂无调用记录。</p>
+{{end}}
+{{end}}

@@ -1,0 +1,97 @@
+{{define "content"}}
+<h1>总览</h1>
+
+{{with .Data}}
+<section class="cards">
+  <div class="card">
+    <div class="card-label">最近 24 小时调用</div>
+    <div class="card-value">{{.Last24hTotal}}</div>
+  </div>
+  <div class="card">
+    <div class="card-label">成功</div>
+    <div class="card-value ok">{{.Last24hOK}}</div>
+  </div>
+  <div class="card">
+    <div class="card-label">失败</div>
+    <div class="card-value err">{{.Last24hFailed}}</div>
+  </div>
+  <div class="card">
+    <div class="card-label">活跃设备</div>
+    <div class="card-value">{{.UniqueDevices}}</div>
+  </div>
+</section>
+{{end}}
+
+<section class="panel">
+  <h2>修改密码</h2>
+  <form method="post" action="/admin/password" class="form form-row">
+    <label>
+      <span>当前密码</span>
+      <input name="current_password" type="password" required>
+    </label>
+    <label>
+      <span>新密码（≥ 8 位）</span>
+      <input name="new_password" type="password" required minlength="8">
+    </label>
+    <label>
+      <span>确认新密码</span>
+      <input name="confirm_password" type="password" required minlength="8">
+    </label>
+    <button class="primary" type="submit">更新</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>常用 LLM 接入参考</h2>
+  <table class="ref-table">
+    <thead>
+      <tr><th>厂商</th><th>base_url</th><th>常用 model</th><th>备注</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>DeepSeek</td>
+        <td><code>https://api.deepseek.com/v1</code></td>
+        <td><code>deepseek-chat</code></td>
+        <td>价格低、中文好</td>
+      </tr>
+      <tr>
+        <td>腾讯混元</td>
+        <td><code>https://api.hunyuan.cloud.tencent.com/v1</code></td>
+        <td><code>hunyuan-lite</code> / <code>hunyuan-pro</code></td>
+        <td>腾讯云内网直连最快</td>
+      </tr>
+      <tr>
+        <td>通义千问 (DashScope)</td>
+        <td><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td>
+        <td><code>qwen-plus</code> / <code>qwen-turbo</code></td>
+        <td>OpenAI 兼容模式</td>
+      </tr>
+      <tr>
+        <td>Moonshot Kimi</td>
+        <td><code>https://api.moonshot.cn/v1</code></td>
+        <td><code>moonshot-v1-8k</code></td>
+        <td>长上下文</td>
+      </tr>
+      <tr>
+        <td>智谱 GLM</td>
+        <td><code>https://open.bigmodel.cn/api/paas/v4</code></td>
+        <td><code>glm-4-flash</code></td>
+        <td>免费额度大</td>
+      </tr>
+      <tr>
+        <td>OpenAI</td>
+        <td><code>https://api.openai.com/v1</code></td>
+        <td><code>gpt-4o-mini</code></td>
+        <td>需海外网络</td>
+      </tr>
+      <tr>
+        <td>OpenRouter（Claude / Gemini 中转）</td>
+        <td><code>https://openrouter.ai/api/v1</code></td>
+        <td><code>anthropic/claude-3.5-sonnet</code></td>
+        <td>聚合多家厂商</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="muted small">选哪个看价格 + 速度 + 质量。建议先把 2-3 家配上，按 priority 排序，优先级数字越小越靠前。</p>
+</section>
+{{end}}

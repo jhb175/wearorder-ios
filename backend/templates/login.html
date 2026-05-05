@@ -1,0 +1,18 @@
+{{define "content"}}
+<div class="login-card">
+  <h1>衣序 AI 后台</h1>
+  <p class="muted">输入管理员凭证登录</p>
+  <form method="post" action="/admin/login" class="form">
+    <label>
+      <span>用户名</span>
+      <input name="username" type="text" autocomplete="username" required autofocus>
+    </label>
+    <label>
+      <span>密码</span>
+      <input name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="primary" type="submit">登录</button>
+  </form>
+  <p class="muted small">第一次登录请使用启动日志中打印的临时密码，登录后立即修改。</p>
+</div>
+{{end}}

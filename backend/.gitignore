@@ -1,0 +1,7 @@
+/wearorder-api
+/wearorder.db
+/wearorder.db-journal
+/wearorder.db-wal
+/wearorder.db-shm
+*.test
+.DS_Store

@@ -1,0 +1,36 @@
+{{define "layout"}}<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.Title}} · 衣序 AI 后台</title>
+<link rel="stylesheet" href="/admin/assets/style.css">
+</head>
+<body>
+
+{{if and (ne .ActiveTab "login") .AdminUser}}
+<nav class="topbar">
+  <div class="topbar-inner">
+    <a href="/admin/" class="brand">衣序 AI 后台</a>
+    <a href="/admin/" class="tab {{if eq .ActiveTab "home"}}active{{end}}">总览</a>
+    <a href="/admin/providers" class="tab {{if eq .ActiveTab "providers"}}active{{end}}">服务商</a>
+    <a href="/admin/test" class="tab {{if eq .ActiveTab "test"}}active{{end}}">联调测试</a>
+    <a href="/admin/logs" class="tab {{if eq .ActiveTab "logs"}}active{{end}}">调用日志</a>
+    <span class="spacer"></span>
+    <span class="user">{{.AdminUser}}</span>
+    <form method="post" action="/admin/logout" class="inline">
+      <button class="link-btn">退出</button>
+    </form>
+  </div>
+</nav>
+{{end}}
+
+<main class="page">
+  {{if .FlashOK}}<div class="flash flash-ok">{{.FlashOK}}</div>{{end}}
+  {{if .FlashError}}<div class="flash flash-err">{{.FlashError}}</div>{{end}}
+  {{template "content" .}}
+</main>
+
+</body>
+</html>
+{{end}}

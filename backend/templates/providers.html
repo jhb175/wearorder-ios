@@ -1,0 +1,82 @@
+{{define "content"}}
+<h1>AI 服务商</h1>
+<p class="muted">所有 OpenAI 兼容协议的 LLM 都可以接入。priority 越小越优先；启用的 provider 会按优先级依次尝试，直到一家成功。</p>
+
+<section class="panel">
+  <h2>新增 provider</h2>
+  <form method="post" action="/admin/providers" class="form provider-form">
+    <label>
+      <span>显示名称</span>
+      <input name="name" type="text" required placeholder="例：DeepSeek-Chat">
+    </label>
+    <label>
+      <span>base_url</span>
+      <input name="base_url" type="url" required placeholder="https://api.deepseek.com/v1">
+    </label>
+    <label>
+      <span>API Key</span>
+      <input name="api_key" type="password" required placeholder="sk-...">
+    </label>
+    <label>
+      <span>model</span>
+      <input name="model" type="text" required placeholder="deepseek-chat">
+    </label>
+    <label>
+      <span>priority（越小越优先）</span>
+      <input name="priority" type="number" value="100" min="1" max="999">
+    </label>
+    <label class="full">
+      <span>备注</span>
+      <input name="notes" type="text" placeholder="例：低成本主路；月度预算 ¥200">
+    </label>
+    <label class="checkbox">
+      <input name="enabled" type="checkbox" value="1" checked>
+      <span>启用</span>
+    </label>
+    <button class="primary" type="submit">添加</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>已配置</h2>
+  {{if .Data.Providers}}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>状态</th>
+        <th>名称</th>
+        <th>base_url</th>
+        <th>model</th>
+        <th>priority</th>
+        <th>更新时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+    {{range .Data.Providers}}
+      <tr>
+        <td>
+          {{if .Enabled}}<span class="badge badge-ok">启用</span>{{else}}<span class="badge">停用</span>{{end}}
+        </td>
+        <td><strong>{{.Name}}</strong>{{if .Notes}}<div class="small muted">{{.Notes}}</div>{{end}}</td>
+        <td><code>{{.BaseURL}}</code></td>
+        <td><code>{{.Model}}</code></td>
+        <td>{{.Priority}}</td>
+        <td class="small">{{formatTime .UpdatedAt}}</td>
+        <td class="actions">
+          <form method="post" action="/admin/providers/{{.ID}}/toggle" class="inline">
+            <button class="ghost">{{if .Enabled}}停用{{else}}启用{{end}}</button>
+          </form>
+          <form method="post" action="/admin/providers/{{.ID}}/delete" class="inline" onsubmit="return confirm('确定删除？')">
+            <button class="danger">删除</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty">还没有配置任何 provider。<a href="#">↑ 在上方添加第一个</a></p>
+  {{end}}
+</section>
+{{end}}

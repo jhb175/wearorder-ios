@@ -1,0 +1,41 @@
+# /etc/nginx/sites-available/wearorder-api
+#
+# Drop this in, replace `api.your-domain.com` with your real domain,
+# then:
+#   sudo ln -s /etc/nginx/sites-available/wearorder-api /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d api.your-domain.com
+# certbot will automatically inject the SSL block into this file.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.your-domain.com;
+
+    # certbot will manage the redirect once it adds a 443 server block;
+    # before that, allow plain HTTP so it can complete the ACME challenge.
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+
+    # Once certbot is installed and a 443 block exists, you can replace
+    # everything below with a `return 301 https://$host$request_uri;`.
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout                 120s;
+        proxy_send_timeout                 120s;
+        client_max_body_size               1m;
+    }
+}
+
+# After `sudo certbot --nginx -d api.your-domain.com`, the file will
+# be expanded to also contain the 443 server block. The block above
+# can then be replaced with:
+#
+# server {
+#     listen 80;
+#     server_name api.your-domain.com;
+#     return 301 https://$host$request_uri;
+# }

@@ -1,0 +1,37 @@
+{{define "content"}}
+<h1>联调测试</h1>
+<p class="muted">向选中的 provider 发一条简单 prompt，验证 base_url / api_key / model 配置是否正确。<strong>不会经过 outfit 业务逻辑</strong>，只是裸调一次 chat completion。</p>
+
+<section class="panel">
+  <form method="post" action="/admin/test" class="form">
+    <label>
+      <span>选择 provider</span>
+      <select name="provider_id" required>
+        <option value="">-- 请选择 --</option>
+        {{range .Data.Providers}}
+        <option value="{{.ID}}">{{.Name}} · {{.Model}} {{if not .Enabled}}（停用）{{end}}</option>
+        {{end}}
+      </select>
+    </label>
+    <label class="full">
+      <span>测试 prompt</span>
+      <textarea name="prompt" rows="3" placeholder="留空即用默认测试 prompt">请用一句话夸奖一下衣序这个 App。</textarea>
+    </label>
+    <button class="primary" type="submit">发送</button>
+  </form>
+</section>
+
+{{if .Data.Error}}
+<section class="panel error-panel">
+  <h2>失败</h2>
+  <pre class="output">{{.Data.Error}}</pre>
+</section>
+{{end}}
+
+{{if .Data.Result}}
+<section class="panel ok-panel">
+  <h2>成功 — {{.Data.ChosenProvider}}</h2>
+  <pre class="output">{{.Data.Result}}</pre>
+</section>
+{{end}}
+{{end}}
