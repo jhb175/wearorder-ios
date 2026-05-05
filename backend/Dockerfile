@@ -5,6 +5,14 @@
 
 FROM golang:1.22-alpine AS builder
 
+# Use a CN-friendly Go module proxy by default. proxy.golang.org is
+# unreachable from mainland China; goproxy.cn is a globally-accessible
+# public mirror run by Qiniu — it works everywhere, just faster in CN.
+# Override via `--build-arg GOPROXY=...` if you'd rather use upstream.
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=$GOPROXY
+ENV GOSUMDB=sum.golang.google.cn
+
 WORKDIR /src
 
 # Cache deps as a separate layer.
@@ -28,8 +36,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM alpine:3.19
 
 # ca-certificates so the binary can call HTTPS LLM endpoints; tzdata
-# so log timestamps render in local time.
-RUN apk add --no-cache ca-certificates tzdata && \
+# so log timestamps render in local time. Switch to a CN-friendly
+# Alpine mirror first — dl-cdn.alpinelinux.org is slow / partially
+# blocked from China; mirrors.aliyun.com is a public Alpine mirror
+# that works globally too.
+RUN sed -i 's|https://dl-cdn.alpinelinux.org|https://mirrors.aliyun.com|g' /etc/apk/repositories && \
+    apk add --no-cache ca-certificates tzdata && \
     addgroup -S wearorder && \
     adduser -S -G wearorder -h /data -s /sbin/nologin wearorder
 
