@@ -320,10 +320,20 @@ var ErrOffTopic = errors.New("LLM 判定请求与穿搭无关")
 // returned ID against the slot's candidate pool. We mirror the iOS
 // AIOutfitValidator semantics so end-to-end behavior stays consistent.
 func validateLLMOutput(raw string, req *generateOutfitRequest) (*llmOutput, error) {
-	cleaned := stripJSONFence(raw)
+	// Be lenient: some LLMs (and especially proxy intermediaries that
+	// strip response_format=json_object) wrap the answer in
+	// natural-language prose like "好的，这是搭配：{...}希望您喜欢！".
+	// Find the first balanced {...} block and decode from there.
+	cleaned := extractJSONObject(raw)
+	if cleaned == "" {
+		return nil, fmt.Errorf("LLM 没有返回 JSON 对象，原文：%s", truncate(raw, 200))
+	}
+	// json.Decoder ignores trailing data after the first complete
+	// value — exactly what we need when the LLM emits "{...}\n更多解释"
+	// even after our extractor.
 	var out llmOutput
-	if err := json.Unmarshal([]byte(cleaned), &out); err != nil {
-		return nil, fmt.Errorf("LLM 输出不是合法 JSON：%w", err)
+	if err := json.NewDecoder(strings.NewReader(cleaned)).Decode(&out); err != nil {
+		return nil, fmt.Errorf("LLM 输出不是合法 JSON：%w（原文：%s）", err, truncate(raw, 200))
 	}
 
 	// LLM may return our agreed-upon sentinel when the user asked for
@@ -411,6 +421,62 @@ func stripJSONFence(s string) string {
 	return strings.TrimSpace(s)
 }
 
+// extractJSONObject pulls out the first balanced {...} block from an
+// otherwise-prose response. Defense against LLMs / proxies that ignore
+// response_format=json_object and return:
+//
+//   "好的，这是搭配：{...real json...} 希望您喜欢！"
+//
+// We track brace depth (simple — doesn't escape strings, but the LLM
+// rarely emits escaped braces inside string values for outfit data).
+// If we find a balanced object we return just that; otherwise we
+// return whatever comes after the first '{' so the JSON decoder can
+// at least try.
+func extractJSONObject(raw string) string {
+	raw = stripJSONFence(raw)
+	if strings.HasPrefix(strings.TrimSpace(raw), "{") {
+		return raw
+	}
+	start := strings.Index(raw, "{")
+	if start < 0 {
+		return ""
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(raw); i++ {
+		c := raw[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if c == '\\' && inString {
+			escaped = true
+			continue
+		}
+		if c == '"' {
+			inString = !inString
+			continue
+		}
+		if inString {
+			continue
+		}
+		switch c {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return raw[start : i+1]
+			}
+		}
+	}
+	// Unbalanced — return the tail starting at first {. Decoder may
+	// still salvage something via json.Decoder, which stops at first
+	// complete value.
+	return raw[start:]
+}
+
 // ===== Prompt building =====
 
 func buildSystemPrompt() string {
@@ -472,7 +538,15 @@ func buildUserPrompt(req *generateOutfitRequest) string {
 		}
 	}
 
-	b.WriteString("\n请只返回 JSON 对象本身，不要加 ```json 代码块，不要加任何其它文字。")
+	// Final reminder. Repeated emphasis works on weaker models that
+	// sometimes ignore the system prompt's JSON requirement and emit
+	// natural-language replies.
+	b.WriteString("\n回复格式：\n")
+	b.WriteString("• 你必须直接以 { 开头，} 结尾，输出一个合法 JSON 对象。\n")
+	b.WriteString("• 不要包裹在 ```json 代码块里。\n")
+	b.WriteString("• 不要在 JSON 之前或之后加任何说明、敬语、寒暄。\n")
+	b.WriteString("• 不要使用 markdown。\n")
+	b.WriteString(`• 示例：{"title":"通勤简洁","reason":"...","top_item_id":"<id>","bottom_item_id":"<id>","outerwear_item_id":null,"shoes_item_id":"<id>","bag_item_id":null,"accessory_item_id":null}` + "\n")
 
 	return b.String()
 }
