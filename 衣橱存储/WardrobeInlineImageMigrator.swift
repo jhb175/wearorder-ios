@@ -21,16 +21,17 @@ struct WardrobeInlineImageMigrationResult: Equatable {
 /// drop the inline columns safely.
 @MainActor
 enum WardrobeInlineImageMigrator {
-    /// Default per-item migration step: writes blobs to the shared file
-    /// store and clears the inline columns.
-    static let defaultMigrateItem: @MainActor (WardrobeItem) throws -> Void = { item in
-        try item.persistInlineImageDataToFiles(clearInlineData: true)
+    @discardableResult
+    static func migrate(items: [WardrobeItem]) -> WardrobeInlineImageMigrationResult {
+        migrate(items: items) { item in
+            try item.persistInlineImageDataToFiles(clearInlineData: true)
+        }
     }
 
     @discardableResult
     static func migrate(
         items: [WardrobeItem],
-        migrateItem: @MainActor (WardrobeItem) throws -> Void = defaultMigrateItem
+        migrateItem: (WardrobeItem) throws -> Void
     ) -> WardrobeInlineImageMigrationResult {
         var migrated = 0
         var failed = 0

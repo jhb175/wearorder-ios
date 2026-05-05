@@ -485,7 +485,7 @@ struct ContentView: View {
                     reminder: viewModel.weatherReminder,
                     secondaryNote: viewModel.secondaryWeatherNote,
                     sourceLabel: weatherSourceLabel,
-                    isAnimationActive: false
+                    isAnimationActive: true
                 )
             }
             .buttonStyle(HomePressableButtonStyle())
