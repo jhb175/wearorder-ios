@@ -65,8 +65,11 @@ final class AppWiringTests: XCTestCase {
     // MARK: - Production gates for unfinished features
 
     func testAIStylistEntryIsGatedOffInProductionBuild() {
-        // INTERNAL_TOOLS is only set in dev configs, so production binaries
-        // must hide the AI entry point until Pro is shipped.
+        // INTERNAL_TOOLS unconditionally exposes the entry point for dev
+        // builds. In production builds the gate falls back to
+        // `AIAvailability.isAvailable`, which requires iOS 26 + Apple
+        // Intelligence — neither holds in the iOS 17 simulator harness, so
+        // the entry must remain hidden.
         #if INTERNAL_TOOLS
         XCTAssertTrue(AppReleaseInfo.allowsAIStylistEntry)
         #else
@@ -113,7 +116,9 @@ final class AppWiringTests: XCTestCase {
             PlannerNotificationManager.self,
             // Diagnostics
             DiagnosticsStorage.self,
-            MetricKitObserver.self
+            MetricKitObserver.self,
+            // AI Stylist (Sprint 3.1)
+            AIOutfitGenerator.self
         ]
         XCTAssertFalse(symbolBag.isEmpty)
     }

@@ -422,7 +422,7 @@ struct WardrobeSettingsView: View {
             settingsSectionHeader(title: "AI 会员", subtitle: "Pro 内测")
 
             NavigationLink {
-                AIStylistPlaceholderView()
+                AIOutfitGenerationView(weather: nil)
             } label: {
                 settingsActionRow(
                     title: "AI 搭配师",

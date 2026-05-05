@@ -1187,7 +1187,7 @@ struct ContentView: View {
 
             if AppReleaseInfo.allowsAIStylistEntry {
                 NavigationLink {
-                    AIStylistPlaceholderView()
+                    AIOutfitGenerationView(weather: viewModel.weather)
                 } label: {
                     AIStylistEntryCard()
                 }

@@ -19,9 +19,15 @@ enum AppReleaseInfo {
 
     static var allowsAIStylistEntry: Bool {
         #if INTERNAL_TOOLS
-        true
+        // Internal builds expose the entry point even if Apple
+        // Intelligence is unavailable, so the dev can hit the
+        // fallback / error UI on simulator.
+        return true
         #else
-        false
+        // Production: only show AI entry when iOS 26 + Apple
+        // Intelligence are actually ready. Users on older OS or
+        // ineligible devices simply don't see the button.
+        return AIAvailability.isAvailable
         #endif
     }
 
