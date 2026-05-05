@@ -341,7 +341,9 @@ struct ContentView: View {
         case .library:
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
-                    ootdLibraryHealthSection
+                    OOTDLibraryHealthSection(snapshot: ootdLibrarySnapshot) { task in
+                        handleOOTDLibraryTask(task)
+                    }
                     savedOOTDSection
                 }
                 .padding(.horizontal, 20)
@@ -398,7 +400,7 @@ struct ContentView: View {
 
     private var onboardingSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "开始使用", subtitle: "3 步完成闭环")
+            HomeSectionHeader(title: "开始使用", subtitle: "3 步完成闭环")
 
             VStack(alignment: .leading, spacing: 14) {
                 onboardingStep(
@@ -574,7 +576,7 @@ struct ContentView: View {
 
     private var ootdSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "今日 OOTD", subtitle: viewModel.todayOOTDSnapshot == nil ? "等待设置" : "已保存")
+            HomeSectionHeader(title: "今日 OOTD", subtitle: viewModel.todayOOTDSnapshot == nil ? "等待设置" : "已保存")
 
             if let snapshot = viewModel.todayOOTDSnapshot {
                 OOTDCardView(recommendation: OutfitRecommendation(outfit: snapshot.outfit)) {
@@ -632,7 +634,7 @@ struct ContentView: View {
 
     private var homePlanCalendarSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "未来穿搭", subtitle: homePlanCalendarSubtitle)
+            HomeSectionHeader(title: "未来穿搭", subtitle: homePlanCalendarSubtitle)
 
             VStack(alignment: .leading, spacing: 14) {
                 if let summary = primaryUpcomingPlanSummary {
@@ -1185,157 +1187,22 @@ struct ContentView: View {
                 NavigationLink {
                     AIStylistPlaceholderView()
                 } label: {
-                    aiStylistEntryCard
+                    AIStylistEntryCard()
                 }
                 .buttonStyle(HomePressableButtonStyle())
             }
 
             if coreFlowReadiness.canCreateOOTD {
-                ootdTemplateStrip
-            }
-        }
-    }
-
-    private var aiStylistEntryCard: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.blue)
-                .frame(width: 38, height: 38)
-                .homeCardSurface(weight: .tertiary, cornerRadius: 17)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text("AI 搭配师")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Pro")
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                }
-                Text("聊天生成 OOTD，支持局部换单品和安排未来计划。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 8)
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.secondary)
-        }
-        .padding(16)
-        .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.secondaryRadius)
-    }
-
-    private var ootdTemplateStrip: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(title: "快速模板", subtitle: "按场景开局")
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(OOTDStarterTemplate.allCases) { template in
-                        Button {
-                            startCreateOOTDFlow(template: template)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Image(systemName: template.systemImage)
-                                    .font(.headline.weight(.semibold))
-                                Text(template.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .lineLimit(1)
-                                Text(template.summary)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            .frame(width: 156, alignment: .leading)
-                            .padding(14)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-        }
-    }
-
-    private var ootdLibraryHealthSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "预设整理", subtitle: ootdLibrarySnapshot.tasks.isEmpty ? "状态良好" : "\(ootdLibrarySnapshot.tasks.count) 项")
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ootdMetricChip(title: "全部预设", value: "\(ootdLibrarySnapshot.outfitCount)", systemImage: "square.grid.2x2")
-                ootdMetricChip(title: "已排期", value: "\(ootdLibrarySnapshot.plannedCount)", systemImage: "calendar.badge.checkmark")
-                ootdMetricChip(title: "未排期", value: "\(ootdLibrarySnapshot.unplannedCount)", systemImage: "calendar.badge.plus")
-                ootdMetricChip(title: "待补齐", value: "\(ootdLibrarySnapshot.incompleteCount)", systemImage: "exclamationmark.triangle")
-            }
-
-            if !ootdLibrarySnapshot.tasks.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(ootdLibrarySnapshot.tasks) { task in
-                        Button {
-                            handleOOTDLibraryTask(task)
-                        } label: {
-                            ootdTaskRow(task)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                    }
+                OOTDTemplateStrip { template in
+                    startCreateOOTDFlow(template: template)
                 }
             }
         }
-    }
-
-    private func ootdMetricChip(title: String, value: String, systemImage: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: systemImage)
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text(value)
-                    .font(.headline.monospacedDigit().weight(.semibold))
-            }
-
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
-    }
-
-    private func ootdTaskRow(_ task: OOTDLibraryTask) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: task.systemImage)
-                .font(.headline)
-                .frame(width: 34, height: 34)
-                .homeCardSurface(weight: .tertiary, cornerRadius: 17)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(task.title)
-                    .font(.subheadline.weight(.semibold))
-                Text(task.message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.secondary)
-                .padding(.top, 10)
-        }
-        .padding(16)
-        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.secondaryRadius)
     }
 
     private var todayOOTDSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "今日搭配", subtitle: viewModel.todayOutfit == nil ? "还未设置" : "当前读取中")
+            HomeSectionHeader(title: "今日搭配", subtitle: viewModel.todayOutfit == nil ? "还未设置" : "当前读取中")
 
             if let todayOutfit = viewModel.todayOutfit {
                 OOTDCardView(recommendation: OutfitRecommendation(outfit: todayOutfit)) {
@@ -1359,7 +1226,7 @@ struct ContentView: View {
 
     private var savedOOTDSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "OOTD 预设", subtitle: ootdListSubtitle)
+            HomeSectionHeader(title: "OOTD 预设", subtitle: ootdListSubtitle)
 
             if outfits.isEmpty {
                 Text("还没有保存的 OOTD 预设。先从衣橱里选单品，保存第一套常用组合。")
@@ -1368,13 +1235,34 @@ struct ContentView: View {
                     .padding(18)
                     .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
             } else if visibleOOTDOutfits.isEmpty {
-                ootdFilterControls
-                ootdEmptySearchState
+                OOTDFilterControls(
+                    searchText: $ootdSearchText,
+                    listFilter: $selectedOOTDListFilter,
+                    tagFilter: $selectedOOTDTagFilter,
+                    sortMode: $selectedOOTDSortMode,
+                    availableTags: availableOOTDTagFilters
+                )
+                OOTDEmptySearchState {
+                    ootdSearchText = ""
+                    selectedOOTDListFilter = .all
+                    selectedOOTDTagFilter = nil
+                    selectedOOTDSortMode = .recent
+                }
             } else {
-                ootdFilterControls
+                OOTDFilterControls(
+                    searchText: $ootdSearchText,
+                    listFilter: $selectedOOTDListFilter,
+                    tagFilter: $selectedOOTDTagFilter,
+                    sortMode: $selectedOOTDSortMode,
+                    availableTags: availableOOTDTagFilters
+                )
 
                 ForEach(displayedOOTDOutfits, id: \.id) { outfit in
-                    ootdPresetCard(outfit)
+                    OOTDPresetCard(
+                        outfit: outfit,
+                        onMarkAsToday: { markOutfitAsToday(outfit) },
+                        onScheduleToDate: { startCreatePlanFlow(selectedOutfit: outfit) }
+                    )
                 }
 
                 if hasMoreOOTDPresets {
@@ -1400,286 +1288,6 @@ struct ContentView: View {
         }
     }
 
-    private func ootdPresetCard(_ outfit: OOTDOutfit) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(outfit.title)
-                        .font(.headline)
-                    Text(outfit.notes.isEmpty ? outfit.summaryText : outfit.notes)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                Text(outfit.isToday ? "今日" : "预设")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
-            }
-
-            if !outfit.orderedItems.isEmpty {
-                ootdPresetPreview(outfit)
-            }
-
-            Text(outfit.summaryText)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            if outfit.isIncomplete {
-                Label("缺少：\(outfit.missingSlotTitles.joined(separator: "、"))", systemImage: "exclamationmark.triangle")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            if !outfit.presetTags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(outfit.presetTags, id: \.self) { tag in
-                            Text(tag)
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                        }
-                    }
-                }
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(outfit.orderedItems, id: \.id) { item in
-                        HStack(spacing: 8) {
-                            Image(systemName: item.imageSymbol)
-                                .font(.caption.weight(.medium))
-                            Text(item.name)
-                                .font(.caption.weight(.medium))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                    }
-                }
-            }
-
-            HStack(spacing: 10) {
-                NavigationLink {
-                    OOTDDetailView(outfit: outfit) {
-                        markOutfitAsToday(outfit)
-                    }
-                } label: {
-                    Label("详情", systemImage: "arrow.up.right")
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
-                .buttonStyle(HomePressableButtonStyle())
-                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-
-                Button {
-                    startCreatePlanFlow(selectedOutfit: outfit)
-                    AppHaptics.selection()
-                } label: {
-                    Label("安排到日期", systemImage: "calendar.badge.plus")
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
-                .buttonStyle(HomePressableButtonStyle())
-                .homeCardSurface(weight: .secondary, cornerRadius: HomeMetrics.pillRadius)
-            }
-
-            if !outfit.isToday {
-                Button {
-                    markOutfitAsToday(outfit)
-                    AppHaptics.selection()
-                } label: {
-                    Label("设为今日 OOTD", systemImage: "sun.max")
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
-                .buttonStyle(HomePressableButtonStyle())
-                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-            }
-        }
-        .padding(18)
-        .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
-    }
-
-    private func ootdPresetPreview(_ outfit: OOTDOutfit) -> some View {
-        let previewItems = Array(outfit.orderedItems.prefix(4))
-
-        return HStack(spacing: 10) {
-            ForEach(previewItems, id: \.id) { item in
-                WardrobeItemImageView(item: item, cornerRadius: 16, symbolFont: .title3.weight(.semibold))
-                    .aspectRatio(1, contentMode: .fit)
-                    .frame(maxWidth: .infinity)
-                    .overlay(alignment: .bottomLeading) {
-                        Text(item.category)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background {
-                                Capsule()
-                                    .fill(.black.opacity(0.32))
-                            }
-                            .padding(6)
-                    }
-            }
-
-            if previewItems.count < 4 {
-                ForEach(0..<(4 - previewItems.count), id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.white.opacity(0.12))
-                        .aspectRatio(1, contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-        }
-    }
-
-    private var ootdFilterControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                TextField("搜索标题、备注或单品", text: $ootdSearchText)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline)
-
-                if !ootdSearchText.isEmpty {
-                    Button {
-                        ootdSearchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("清空 OOTD 搜索")
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .glassCard(cornerRadius: HomeMetrics.secondaryRadius, tint: Color.white.opacity(0.14))
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(OOTDListFilter.allCases, id: \.self) { filter in
-                        Button {
-                            selectedOOTDListFilter = filter
-                            AppHaptics.selection()
-                        } label: {
-                            Label(filter.title, systemImage: filter.systemImage)
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                        .homeCardSurface(
-                            weight: selectedOOTDListFilter == filter ? .secondary : .tertiary,
-                            cornerRadius: HomeMetrics.pillRadius
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-
-            if !availableOOTDTagFilters.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        Button {
-                            selectedOOTDTagFilter = nil
-                            AppHaptics.selection()
-                        } label: {
-                            Label("全部标签", systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                        .homeCardSurface(
-                            weight: selectedOOTDTagFilter == nil ? .secondary : .tertiary,
-                            cornerRadius: HomeMetrics.pillRadius
-                        )
-
-                        ForEach(availableOOTDTagFilters, id: \.self) { tag in
-                            Button {
-                                selectedOOTDTagFilter = tag
-                                AppHaptics.selection()
-                            } label: {
-                                Text(tag)
-                                    .font(.caption.weight(.semibold))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                            }
-                            .buttonStyle(HomePressableButtonStyle())
-                            .homeCardSurface(
-                                weight: selectedOOTDTagFilter == tag ? .secondary : .tertiary,
-                                cornerRadius: HomeMetrics.pillRadius
-                            )
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(OOTDPresetSortMode.allCases, id: \.self) { mode in
-                        Button {
-                            selectedOOTDSortMode = mode
-                            AppHaptics.selection()
-                        } label: {
-                            Label(mode.title, systemImage: mode.systemImage)
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                        }
-                        .buttonStyle(HomePressableButtonStyle())
-                        .homeCardSurface(
-                            weight: selectedOOTDSortMode == mode ? .secondary : .tertiary,
-                            cornerRadius: HomeMetrics.pillRadius
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-        }
-    }
-
-    private var ootdEmptySearchState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("没有匹配的预设")
-                .font(.headline)
-            Text("换个关键词，或切回“全部”查看完整 OOTD 预设。")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            Button {
-                ootdSearchText = ""
-                selectedOOTDListFilter = .all
-                selectedOOTDTagFilter = nil
-                selectedOOTDSortMode = .recent
-            } label: {
-                Label("清空筛选", systemImage: "line.3.horizontal.decrease.circle")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-            }
-            .buttonStyle(HomePressableButtonStyle())
-            .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-        }
-        .padding(18)
-        .glassCard(cornerRadius: HomeMetrics.secondaryRadius)
-    }
-
     private var atmosphericBackground: some View {
         AppAdaptiveBackground()
     }
@@ -1696,20 +1304,6 @@ struct ContentView: View {
         .padding(.horizontal, compact ? 12 : 14)
         .padding(.vertical, compact ? 10 : 12)
         .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-    }
-
-    private func sectionHeader(title: String, subtitle: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(.title3.weight(.semibold))
-                .lineLimit(2)
-            Spacer()
-            Text(subtitle)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-                .lineLimit(2)
-        }
     }
 
     private func syncViewModel(
@@ -1789,164 +1383,7 @@ struct ContentView: View {
 
 }
 
-private struct HomePlanCalendarDay: Identifiable {
-    let date: Date
-    let planCount: Int
-    let isToday: Bool
-
-    var id: Date { date }
-
-    var weekdayText: String {
-        date.formatted(.dateTime.weekday(.narrow).locale(Locale(identifier: "zh_Hans_CN")))
-    }
-
-    var dayText: String {
-        date.formatted(.dateTime.day().locale(Locale(identifier: "zh_Hans_CN")))
-    }
-
-    var accessibilityLabel: String {
-        let dateText = date.formatted(.dateTime.month().day().weekday(.wide).locale(Locale(identifier: "zh_Hans_CN")))
-        if planCount == 0 {
-            return "\(dateText)，没有 OOTD 计划"
-        }
-        return "\(dateText)，\(planCount) 条 OOTD 计划"
-    }
-}
-
-private struct WeatherCityPickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    let savedCity: String
-    let onSave: (String) -> Void
-    let onUseCurrentLocation: () -> Void
-    @State private var cityName: String
-
-    init(
-        savedCity: String,
-        onSave: @escaping (String) -> Void,
-        onUseCurrentLocation: @escaping () -> Void
-    ) {
-        self.savedCity = savedCity
-        self.onSave = onSave
-        self.onUseCurrentLocation = onUseCurrentLocation
-        let initialCity = savedCity.trimmingCharacters(in: .whitespacesAndNewlines)
-        _cityName = State(initialValue: initialCity)
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("城市天气") {
-                    TextField("城市名称", text: $cityName)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-
-                    Text("可输入上海、Tokyo、New York、Paris 等全球城市。选择城市只是选择天气预报地点，不会让你手动改天气或温度。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    Button {
-                        onUseCurrentLocation()
-                        dismiss()
-                    } label: {
-                        Label("使用当前位置天气", systemImage: "location.fill")
-                    }
-                } footer: {
-                    Text("如果定位权限已开启，会优先读取当前位置的真实天气。")
-                }
-            }
-            .navigationTitle("选择天气城市")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("获取天气") {
-                        onSave(trimmedCityName)
-                        dismiss()
-                    }
-                    .disabled(trimmedCityName.isEmpty)
-                }
-            }
-        }
-    }
-
-    private var trimmedCityName: String {
-        cityName.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
 private extension ContentView {
-    enum OOTDListFilter: CaseIterable {
-        case all
-        case today
-        case planned
-        case unplanned
-        case incomplete
-
-        var title: String {
-            switch self {
-            case .all:
-                "全部"
-            case .today:
-                "今日"
-            case .planned:
-                "已排期"
-            case .unplanned:
-                "未排期"
-            case .incomplete:
-                "缺失"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .all:
-                "square.grid.2x2"
-            case .today:
-                "sun.max"
-            case .planned:
-                "calendar.badge.checkmark"
-            case .unplanned:
-                "calendar.badge.plus"
-            case .incomplete:
-                "exclamationmark.triangle"
-            }
-        }
-    }
-
-    enum OOTDPresetSortMode: CaseIterable {
-        case recent
-        case title
-        case plannedCount
-
-        var title: String {
-            switch self {
-            case .recent:
-                "最近更新"
-            case .title:
-                "名称"
-            case .plannedCount:
-                "使用次数"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .recent:
-                "clock"
-            case .title:
-                "textformat"
-            case .plannedCount:
-                "calendar.badge.clock"
-            }
-        }
-    }
-
     var ootdListSubtitle: String {
         guard !outfits.isEmpty else { return "0 套" }
         if visibleOOTDOutfits.count == outfits.count {
@@ -2078,89 +1515,6 @@ private extension ContentView {
         }
     }
 
-}
-
-struct WardrobeItemCard: View {
-    enum Emphasis {
-        case carousel
-        case grid
-    }
-
-    let item: WardrobeItem
-    var emphasis: Emphasis = .carousel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            WardrobeItemImageView(
-                item: item,
-                cornerRadius: 24,
-                symbolFont: .system(size: 30, weight: .semibold)
-            )
-                .frame(height: emphasis == .grid ? 158 : 138)
-                .overlay(alignment: .topTrailing) {
-                    if item.isFavorite {
-                        Image(systemName: "heart.fill")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.96))
-                            .padding(8)
-                            .background(Circle().fill(Color.black.opacity(0.12)))
-                            .padding(10)
-                    }
-                }
-                .overlay(alignment: .bottomLeading) {
-                    Text(item.category)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(.black.opacity(0.24), in: Capsule())
-                        .padding(10)
-                }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.name)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text(item.compactDisplaySubtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                if !badgeTexts.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(badgeTexts.prefix(emphasis == .grid ? 2 : 3), id: \.self) { badge in
-                            Text(badge)
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 4)
-                                .homeCardSurface(weight: .tertiary, cornerRadius: HomeMetrics.pillRadius)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(14)
-        .homeCardSurface(
-            weight: emphasis == .grid ? .secondary : .tertiary,
-            cornerRadius: HomeMetrics.secondaryRadius
-        )
-    }
-
-    private var badgeTexts: [String] {
-        var badges = [item.season]
-        if let brand = item.trimmedBrand {
-            badges.append(brand)
-        }
-        if let size = item.trimmedSize {
-            badges.append(size)
-        }
-        if let styleTag = item.styleTags.first {
-            badges.append(styleTag)
-        }
-        return badges
-    }
 }
 
 #Preview {

@@ -30,11 +30,17 @@ final class WardrobeImageFileStore: @unchecked Sendable {
 
     private let rootDirectoryURL: URL
 
-    private init() {
+    private convenience init() {
         let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        rootDirectoryURL = applicationSupportURL
-            .appendingPathComponent("WearOrderImages", isDirectory: true)
+        self.init(
+            rootDirectoryURL: applicationSupportURL
+                .appendingPathComponent("WearOrderImages", isDirectory: true)
+        )
+    }
+
+    init(rootDirectoryURL: URL) {
+        self.rootDirectoryURL = rootDirectoryURL
     }
 
     nonisolated func url(for fileName: String?) -> URL? {

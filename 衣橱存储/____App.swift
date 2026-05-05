@@ -5,6 +5,10 @@ import SwiftData
 struct YiChuCunChuApp: App {
     @AppStorage(AppLanguage.storageKey) private var appLanguageRawValue = AppLanguage.chinese.rawValue
 
+    init() {
+        MetricKitObserver.shared.start()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -19,17 +23,17 @@ enum WardrobePersistentStore {
     static let disableCloudKitEnvironmentKey = "WEARORDER_DISABLE_CLOUDKIT"
     static let cloudKitFallbackFlagKey = "wearorder.cloudkit.localFallbackActive"
 
-    static let schema = Schema([
-        WardrobeItem.self,
-        OutfitPlan.self,
-        OOTDOutfit.self
-    ])
+    static let schema = Schema(versionedSchema: WardrobeSchemaV1.self)
 
     static let shared: ModelContainer = {
         let configuration = makeConfiguration()
 
         do {
-            let container = try ModelContainer(for: schema, configurations: [configuration])
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: WardrobeMigrationPlan.self,
+                configurations: [configuration]
+            )
             UserDefaults.standard.set(false, forKey: cloudKitFallbackFlagKey)
             return container
         } catch {
@@ -40,6 +44,7 @@ enum WardrobePersistentStore {
             do {
                 let fallbackContainer = try ModelContainer(
                     for: schema,
+                    migrationPlan: WardrobeMigrationPlan.self,
                     configurations: [ModelConfiguration(schema: schema)]
                 )
                 UserDefaults.standard.set(true, forKey: cloudKitFallbackFlagKey)

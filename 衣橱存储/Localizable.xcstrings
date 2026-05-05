@@ -1,0 +1,1629 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "--°" : {
+
+    },
+    "“%@”已自动放入%@位置，你可以继续补齐其他单品。" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "“%1$@”已自动放入%2$@位置，你可以继续补齐其他单品。"
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@ · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "%@ 换成 %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ 换成 %2$@"
+          }
+        }
+      }
+    },
+    "%@完整报告" : {
+
+    },
+    "%@隐私说明" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%lld 个" : {
+
+    },
+    "%lld 件" : {
+
+    },
+    "%lld 件 · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld 件 · %2$@"
+          }
+        }
+      }
+    },
+    "%lld 套预设缺少关键单品，补齐后可用于快速排期。" : {
+
+    },
+    "%lld 条 OOTD 计划" : {
+
+    },
+    "%lld 条计划存在同日多排" : {
+
+    },
+    "%lld/%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+
+    },
+    "%lld°" : {
+
+    },
+    "%lldkm/h" : {
+
+    },
+    "+%lld" : {
+
+    },
+    "AI 搭配师" : {
+
+    },
+    "OOTD" : {
+      "comment" : "Brand-neutral term used across markets; keep in Latin.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTD"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTD"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTD"
+          }
+        }
+      }
+    },
+    "OOTD 保存失败" : {
+
+    },
+    "OOTD 搭配详情" : {
+
+    },
+    "OOTD 详情" : {
+
+    },
+    "OOTD 页面" : {
+
+    },
+    "Pro" : {
+
+    },
+    "Pro 内测" : {
+
+    },
+    "上个月" : {
+
+    },
+    "下个月" : {
+
+    },
+    "也可以输入自定义标签，用逗号分隔" : {
+
+    },
+    "二次调整" : {
+
+    },
+    "今天" : {
+
+    },
+    "今天还没安排 OOTD" : {
+
+    },
+    "今日" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘"
+          }
+        }
+      }
+    },
+    "今日搭配" : {
+
+    },
+    "今日穿搭判断" : {
+
+    },
+    "从现有衣橱里挑选单品，先完成手动搭配闭环。" : {
+
+    },
+    "从相册选择" : {
+
+    },
+    "会创建一条本地通知，提醒你查看当天 OOTD。" : {
+
+    },
+    "体感 %lld° · 最高 %lld° / 最低 %lld°" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "体感 %1$lld° · 最高 %2$lld° / 最低 %3$lld°"
+          }
+        }
+      }
+    },
+    "使用 Apple ID 登录" : {
+
+    },
+    "使用当前位置天气" : {
+
+    },
+    "例如：出门前记得拿外套" : {
+
+    },
+    "保养备注（可选）" : {
+
+    },
+    "保存" : {
+
+    },
+    "保存 OOTD 前需要补齐基础单品" : {
+
+    },
+    "保存中…" : {
+
+    },
+    "保存为 OOTD" : {
+
+    },
+    "保存为今日搭配" : {
+
+    },
+    "保存后会新增一条安排，不会覆盖原计划。之后可在计划详情里调整或删除。" : {
+
+    },
+    "保存计划修改" : {
+
+    },
+    "保持定期备份，就能比较安心地继续扩展衣橱数据。" : {
+
+    },
+    "先保存一套 OOTD 预设，再回来把它安排到这条计划。" : {
+
+    },
+    "先去 OOTD 的预设库保存至少一套常用组合，这里才能直接排期。" : {
+
+    },
+    "先新建一套 OOTD，并在保存时勾选“设为今日搭配”，首页就会开始读取。" : {
+
+    },
+    "先添加几件常穿衣物，衣序会按已有分类生成覆盖概览。" : {
+
+    },
+    "先补齐上装、下装或一件式穿搭，之后就能一键安排到未来日期。" : {
+
+    },
+    "入库时间线" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added Timeline"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加履歴"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "추가 기록"
+          }
+        }
+      }
+    },
+    "入库预览" : {
+
+    },
+    "全选筛选" : {
+
+    },
+    "全部分类" : {
+
+    },
+    "全部单品" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Items"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてのアイテム"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 아이템"
+          }
+        }
+      }
+    },
+    "全部标签" : {
+
+    },
+    "全部类型" : {
+
+    },
+    "关联搭配" : {
+
+    },
+    "关联计划" : {
+
+    },
+    "关闭引导" : {
+
+    },
+    "分类" : {
+
+    },
+    "分类范围" : {
+
+    },
+    "删除" : {
+
+    },
+    "删除衣物" : {
+
+    },
+    "删除计划" : {
+
+    },
+    "删除这件衣物？" : {
+
+    },
+    "删除这套 OOTD？" : {
+
+    },
+    "删除这条计划？" : {
+
+    },
+    "加入 OOTD" : {
+
+    },
+    "包含衣橱、OOTD 和计划的本地数据报告。" : {
+
+    },
+    "升级建议" : {
+
+    },
+    "去 OOTD" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open OOTD"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTDを開く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTD 열기"
+          }
+        }
+      }
+    },
+    "去推荐" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See Suggestions"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提案を見る"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "추천 보기"
+          }
+        }
+      }
+    },
+    "去日历" : {
+
+    },
+    "去设置" : {
+
+    },
+    "取消" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "취소"
+          }
+        }
+      }
+    },
+    "取消全选" : {
+
+    },
+    "取消收藏" : {
+
+    },
+    "可以从预设库快速排期" : {
+
+    },
+    "可以把已保存的 OOTD 预设放到这一天，后续也能接入旅行、天气和 AI 推荐。" : {
+
+    },
+    "可信度 %lld%%" : {
+
+    },
+    "可信度 %lld%% · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "可信度 %1$lld%% · %2$@"
+          }
+        }
+      }
+    },
+    "可替换 / 补位" : {
+
+    },
+    "可输入上海、Tokyo、New York、Paris 等全球城市。选择城市只是选择天气预报地点，不会让你手动改天气或温度。" : {
+
+    },
+    "可选" : {
+
+    },
+    "同日还有 %lld 条计划" : {
+
+    },
+    "名称" : {
+
+    },
+    "含收藏" : {
+
+    },
+    "品牌（可选）" : {
+
+    },
+    "回到首页授权定位或选择城市后，这里会展示 Apple Weather 的小时预报、10 日趋势和穿搭指标。" : {
+
+    },
+    "图片" : {
+
+    },
+    "城市名称" : {
+
+    },
+    "城市天气" : {
+
+    },
+    "处理中" : {
+
+    },
+    "备注" : {
+
+    },
+    "复制为新搭配" : {
+
+    },
+    "复制到下一次" : {
+
+    },
+    "天气搭配提醒" : {
+
+    },
+    "天气数据由" : {
+
+    },
+    "天气数据由 %@ 提供。" : {
+
+    },
+    "天气暂不可用" : {
+
+    },
+    "天气穿搭" : {
+
+    },
+    "天气读取中" : {
+
+    },
+    "好" : {
+
+    },
+    "如果定位权限已开启，会优先读取当前位置的真实天气。" : {
+
+    },
+    "季节" : {
+
+    },
+    "安排" : {
+
+    },
+    "安排 %@" : {
+
+    },
+    "安排 OOTD 到日期" : {
+
+    },
+    "安排到日期" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedule to Date"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日付に予定する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날짜에 추가"
+          }
+        }
+      }
+    },
+    "安排日期" : {
+
+    },
+    "安排未来几天" : {
+
+    },
+    "安排这天" : {
+
+    },
+    "完成" : {
+
+    },
+    "完成选择" : {
+
+    },
+    "导出 OOTD" : {
+
+    },
+    "导出穿搭计划" : {
+
+    },
+    "导出衣橱清单" : {
+
+    },
+    "导出衣物详情" : {
+
+    },
+    "尺码（可选）" : {
+
+    },
+    "已带入当前衣物" : {
+
+    },
+    "已收藏" : {
+
+    },
+    "已有 %lld 件，点击查看分类。" : {
+
+    },
+    "已有分类" : {
+
+    },
+    "已生成 %lld 套可执行搭配" : {
+
+    },
+    "已自动套用预设" : {
+
+    },
+    "已选 %lld 件" : {
+
+    },
+    "常用颜色" : {
+
+    },
+    "应用" : {
+
+    },
+    "开启提醒" : {
+
+    },
+    "开始使用" : {
+
+    },
+    "开始拍照" : {
+
+    },
+    "当前切换只影响日期、日历、时间等系统格式；App 文案保持中文。完整多语言会在后续版本单独上线。" : {
+
+    },
+    "当前已按“%@”重新生成。" : {
+
+    },
+    "当前已是今日搭配" : {
+
+    },
+    "当前正在把“%@”安排到日期里，可重复使用，不会影响原 OOTD。" : {
+
+    },
+    "当前没有高优先级整理任务。继续保持定期备份和照片压缩就很好。" : {
+
+    },
+    "当前选择" : {
+
+    },
+    "待选择" : {
+
+    },
+    "快速整理" : {
+
+    },
+    "快速整理衣橱" : {
+
+    },
+    "我的 OOTD" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My OOTDs"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "マイOOTD"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내 OOTD"
+          }
+        }
+      }
+    },
+    "打开设置" : {
+
+    },
+    "批量" : {
+
+    },
+    "批量处理会自动压缩图片、生成缩略图，并尝试识别分类和颜色。保存前可以逐件改名称和分类。" : {
+
+    },
+    "批量导入照片" : {
+
+    },
+    "批量拍照" : {
+
+    },
+    "把 %@ 安排到 %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "把 %1$@ 安排到 %2$@"
+          }
+        }
+      }
+    },
+    "把天气、场景、心情和目的地交给 AI，再从你的真实衣橱里挑选单品。" : {
+
+    },
+    "把已保存的 OOTD 预设安排到某一天，再按需要设置一次本地提醒。" : {
+
+    },
+    "把常用组合保存成 OOTD 预设，今天或未来某天都能直接套用。" : {
+
+    },
+    "把衣服、裤子、鞋子、包和配饰都记录进来，为 OOTD 和计划模块提供基础数据。" : {
+
+    },
+    "拍照" : {
+
+    },
+    "按今日预报去搭配" : {
+
+    },
+    "按入库时间和批量导入批次回看衣橱记录，可快速修正分类、补照片或进入详情。" : {
+
+    },
+    "换个关键词，或切回“全部”查看完整 OOTD 预设。" : {
+
+    },
+    "换个关键词，或清空搜索后查看全部 OOTD 预设。" : {
+
+    },
+    "排到日期" : {
+
+    },
+    "排序" : {
+
+    },
+    "推荐依据" : {
+
+    },
+    "推荐精度建议" : {
+
+    },
+    "推荐结果" : {
+
+    },
+    "提供" : {
+
+    },
+    "提供 ·" : {
+
+    },
+    "提醒" : {
+
+    },
+    "提醒 · %@" : {
+
+    },
+    "提醒时间" : {
+
+    },
+    "提醒时间 · %@" : {
+
+    },
+    "提醒时间需要晚于当前时间" : {
+
+    },
+    "搜索 OOTD、场景或单品" : {
+
+    },
+    "搜索单品、颜色或分类" : {
+
+    },
+    "搜索标题、场景或搭配" : {
+
+    },
+    "搜索标题、备注或单品" : {
+
+    },
+    "收藏" : {
+
+    },
+    "改分类" : {
+
+    },
+    "改季节" : {
+
+    },
+    "数字衣橱" : {
+
+    },
+    "数据来源" : {
+
+    },
+    "整理" : {
+
+    },
+    "新建 OOTD" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New OOTD"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTDを作成"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOTD 만들기"
+          }
+        }
+      }
+    },
+    "新建穿搭计划" : {
+
+    },
+    "新建计划" : {
+
+    },
+    "日期语言" : {
+
+    },
+    "暂无可选%@单品，先回衣橱添加对应分类。" : {
+
+    },
+    "暂无待处理单品" : {
+
+    },
+    "暂时无法生成推荐" : {
+
+    },
+    "更新" : {
+
+    },
+    "更新天气" : {
+
+    },
+    "替换图片" : {
+
+    },
+    "未安排" : {
+
+    },
+    "未来 7 天已安排 %lld / 7 天" : {
+
+    },
+    "未来 7 天还没有安排 OOTD。可以把常用预设放进日历，通勤、约会、旅行和特殊日子都能提前准备。" : {
+
+    },
+    "未选择" : {
+
+    },
+    "本地规则推荐" : {
+
+    },
+    "条件推荐" : {
+
+    },
+    "来自%@的本地搭配详情。" : {
+
+    },
+    "来自%@的本地衣物清单。" : {
+
+    },
+    "来自%@的本地衣物详情。" : {
+
+    },
+    "来自%@的本地计划清单。" : {
+
+    },
+    "查看全部" : {
+
+    },
+    "查看全部 %lld 件" : {
+
+    },
+    "查看全部分类覆盖" : {
+
+    },
+    "查看已保存" : {
+
+    },
+    "查看搭配详情" : {
+
+    },
+    "查看缺失核心分类" : {
+
+    },
+    "查看计划" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Plans"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "予定を見る"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일정 보기"
+          }
+        }
+      }
+    },
+    "查看近期计划" : {
+
+    },
+    "标为收藏" : {
+
+    },
+    "标签会用于 OOTD 预设库搜索、筛选，以及未来把常用穿搭快速排到日期里。" : {
+
+    },
+    "核心" : {
+
+    },
+    "检查状态" : {
+
+    },
+    "正在保存到本地衣橱..." : {
+
+    },
+    "正在本地处理图片并生成缩略图，照片不会上传。" : {
+
+    },
+    "正在本地处理照片..." : {
+
+    },
+    "正在本地生成白底图，照片不会上传。" : {
+
+    },
+    "正在读取 %@ 的未来天气…" : {
+
+    },
+    "没有匹配的预设" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matching presets"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一致するプリセットがありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일치하는 프리셋이 없어요"
+          }
+        }
+      }
+    },
+    "添加单件" : {
+
+    },
+    "添加第一件" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add First Item"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最初のアイテムを追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "첫 아이템 추가"
+          }
+        }
+      }
+    },
+    "添加衣物" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Item"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アイテムを追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "아이템 추가"
+          }
+        }
+      }
+    },
+    "清理失效提醒" : {
+
+    },
+    "清空 OOTD 搜索" : {
+
+    },
+    "清空搜索" : {
+
+    },
+    "清空数据" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "データを消去"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "데이터 초기화"
+          }
+        }
+      }
+    },
+    "清空筛选" : {
+
+    },
+    "清空计划搜索" : {
+
+    },
+    "清空预设搜索" : {
+
+    },
+    "清除图片" : {
+
+    },
+    "点进详情补充图片、标签、品牌或尺码" : {
+
+    },
+    "点选日期查看当天 OOTD 计划" : {
+
+    },
+    "生成 1~3 套推荐" : {
+
+    },
+    "生成中" : {
+
+    },
+    "生成白底图" : {
+
+    },
+    "确认清空" : {
+
+    },
+    "确认清空本地数据" : {
+
+    },
+    "移除图片" : {
+
+    },
+    "移除预设" : {
+
+    },
+    "稍后" : {
+
+    },
+    "穿搭计划清单" : {
+
+    },
+    "等待天气" : {
+
+    },
+    "筛选与排序" : {
+
+    },
+    "继续加载 %lld 件" : {
+
+    },
+    "继续加载预设" : {
+
+    },
+    "继续拍照" : {
+
+    },
+    "继续选择照片" : {
+
+    },
+    "编辑" : {
+
+    },
+    "编辑 OOTD" : {
+
+    },
+    "编辑图片" : {
+
+    },
+    "编辑搭配" : {
+
+    },
+    "编辑衣物" : {
+
+    },
+    "缺少：%@" : {
+
+    },
+    "聊天生成 OOTD，支持局部换单品和安排未来计划。" : {
+
+    },
+    "聊天生成穿搭" : {
+
+    },
+    "自定义颜色名" : {
+
+    },
+    "获取天气" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Weather"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天気を取得"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날씨 가져오기"
+          }
+        }
+      }
+    },
+    "获取天气后去搭配" : {
+
+    },
+    "衣橱" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wardrobe"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クローゼット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "옷장"
+          }
+        }
+      }
+    },
+    "衣橱清单" : {
+
+    },
+    "衣物保存失败" : {
+
+    },
+    "衣物信息" : {
+
+    },
+    "衣物详情" : {
+
+    },
+    "补图片" : {
+
+    },
+    "计划" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plans"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "予定"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일정"
+          }
+        }
+      }
+    },
+    "计划保存失败" : {
+
+    },
+    "计划日期" : {
+
+    },
+    "计划类型" : {
+
+    },
+    "计划范围" : {
+
+    },
+    "计划详情" : {
+
+    },
+    "记录购买日期" : {
+
+    },
+    "设为今日 OOTD" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set as Today's OOTD"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日のOOTDに設定"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘의 OOTD로 설정"
+          }
+        }
+      }
+    },
+    "设为今日搭配" : {
+
+    },
+    "设置" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정"
+          }
+        }
+      }
+    },
+    "详情" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "詳細"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "상세"
+          }
+        }
+      }
+    },
+    "请输入有效的非负金额" : {
+
+    },
+    "调整标题、备注和单品组合，保存后会同步到首页和计划。" : {
+
+    },
+    "购买与保养" : {
+
+    },
+    "购买价格（可选）" : {
+
+    },
+    "购买日期" : {
+
+    },
+    "购买渠道（可选）" : {
+
+    },
+    "资料完整，可继续搭配" : {
+
+    },
+    "轻量推荐" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smart Suggest"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "かんたん提案"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "간단 추천"
+          }
+        }
+      }
+    },
+    "载入示例" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load Sample"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サンプルを読み込む"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "샘플 불러오기"
+          }
+        }
+      }
+    },
+    "输入“%@”以继续" : {
+
+    },
+    "输入简单条件，用本地规则从现有衣橱生成可执行的穿搭建议。" : {
+
+    },
+    "运营中心" : {
+
+    },
+    "返回调整条件" : {
+
+    },
+    "还有 %lld 条计划，可在下方列表继续查看。" : {
+
+    },
+    "还没有今日搭配" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No outfit for today yet"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日のコーデはまだありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘 코디가 아직 없어요"
+          }
+        }
+      }
+    },
+    "还没有保存的 OOTD 预设。先从衣橱里选单品，保存第一套常用组合。" : {
+
+    },
+    "还没有拍摄照片" : {
+
+    },
+    "还没有真实天气" : {
+
+    },
+    "还没有计划引用这套 OOTD 预设。" : {
+
+    },
+    "还没有设置今日搭配" : {
+
+    },
+    "还没有这类单品，建议添加。" : {
+
+    },
+    "还没有选择照片" : {
+
+    },
+    "这一天已有 %lld 条计划" : {
+
+    },
+    "这个操作会删除本机保存的衣物、OOTD、计划和计划提醒。已经导出的备份文件不会受影响。" : {
+
+    },
+    "这些计划和当前计划在同一天，可以按实际出门场景保留或调整日期。" : {
+
+    },
+    "这些计划绑定的 OOTD 中包含“%@”。" : {
+
+    },
+    "这天还没有 OOTD 计划" : {
+
+    },
+    "这套 OOTD 会作为预设保存，你只需要选日期、场景和提醒。" : {
+
+    },
+    "这套搭配存在缺失单品：%@" : {
+
+    },
+    "这套搭配当前有缺失单品：%@" : {
+
+    },
+    "这条计划暂时没有套用 OOTD 预设。保存后首页和计划列表会继续显示计划信息，但不会跳转到搭配详情。" : {
+
+    },
+    "这里承载完整衣橱管理。一级页只放预览，300 件以上也不会把首页撑长。" : {
+
+    },
+    "进入计划日历" : {
+
+    },
+    "退出本机" : {
+
+    },
+    "选一个日期，再套用一套 OOTD 预设。同一套预设可以重复安排到不同日期。" : {
+
+    },
+    "选择" : {
+
+    },
+    "选择上装、下装以及可选单品后，这里会显示搭配摘要。" : {
+
+    },
+    "选择多张照片" : {
+
+    },
+    "选择天气城市" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Weather City"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天気の都市を選ぶ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날씨 도시 선택"
+          }
+        }
+      }
+    },
+    "选择衣物" : {
+
+    },
+    "重新检查" : {
+
+    },
+    "重试" : {
+
+    },
+    "隐私说明" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개인정보"
+          }
+        }
+      }
+    },
+    "集中管理本地数据、备份恢复、通知状态和隐私说明。" : {
+
+    },
+    "预设" : {
+
+    },
+    "预设库" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Presets"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プリセット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프리셋"
+          }
+        }
+      }
+    },
+    "预设标签" : {
+
+    },
+    "预设还不能直接排期" : {
+
+    },
+    "颜色" : {
+
+    },
+    "风格标签" : {
+
+    },
+    "风格标签，使用逗号分隔" : {
+
+    },
+    "首页" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ホーム"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "홈"
+          }
+        }
+      }
+    },
+    "首页“今日 OOTD”会读取这套搭配。" : {
+
+    }
+  },
+  "version" : "1.0"
+}

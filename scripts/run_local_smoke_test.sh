@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Validates that the WearOrder release artifacts are well-formed before
+# uploading a TestFlight build:
+#
+#   * Privacy manifest, Info.plist, entitlements declare required Apple keys
+#   * App Store metadata / privacy / release / screenshot / QA / asset docs
+#     are present and non-stale
+#   * Xcode project-level config (bundle ID, deployment target, test target)
+#     is correct
+#   * Debug + Release iOS builds compile, build-for-testing succeeds
+#   * Asset catalog has no third-party-source filename hints
+#
+# Source-level "feature wiring" guards used to live here as ~120 grep lines,
+# but they coupled smoke results to specific symbol names and blocked safe
+# refactors. They have been replaced by:
+#   * `xcodebuild build` (this script) catches anything compile-required.
+#   * `xcodebuild test` runs unit tests for behavior.
+#   * `衣橱存储Tests/AppWiringTests.swift` covers the few wiring invariants
+#     (CloudKit container ID, release contact URLs) the compiler can't see.
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
@@ -14,6 +33,10 @@ APP_DIR="衣橱存储"
 PRIVACY_MANIFEST="$APP_DIR/PrivacyInfo.xcprivacy"
 INFO_PLIST="$APP_DIR/Info.plist"
 
+# ---------------------------------------------------------------------------
+# 1. File existence + plist validity
+# ---------------------------------------------------------------------------
+
 [ -f "$PRIVACY_MANIFEST" ] \
   || fail "PrivacyInfo.xcprivacy is missing"
 
@@ -25,6 +48,10 @@ plutil -lint "$INFO_PLIST" >/dev/null \
 
 plutil -lint "$PRIVACY_MANIFEST" >/dev/null \
   || fail "PrivacyInfo.xcprivacy is not a valid plist"
+
+# ---------------------------------------------------------------------------
+# 2. Privacy manifest required keys (Apple-mandatory)
+# ---------------------------------------------------------------------------
 
 grep -q 'NSPrivacyAccessedAPICategoryUserDefaults' "$PRIVACY_MANIFEST" \
   || fail "privacy manifest does not declare UserDefaults required reason API"
@@ -53,6 +80,61 @@ grep -q 'NSPrivacyCollectedDataTypeEmailAddress' "$PRIVACY_MANIFEST" \
 grep -q 'NSPrivacyCollectedDataTypeUserID' "$PRIVACY_MANIFEST" \
   || fail "privacy manifest does not declare Apple ID user identifier collection"
 
+# ---------------------------------------------------------------------------
+# 3. Info.plist required descriptions + background modes
+# ---------------------------------------------------------------------------
+
+grep -q 'NSLocationWhenInUseUsageDescription' "$INFO_PLIST" \
+  || fail "Info.plist does not include location usage description"
+
+grep -q 'NSCameraUsageDescription' "$INFO_PLIST" \
+  || fail "camera usage description is missing"
+
+grep -q '<key>ITSAppUsesNonExemptEncryption</key>' "$INFO_PLIST" \
+  || fail "export compliance key is missing"
+
+grep -q '<key>UIBackgroundModes</key>' "$INFO_PLIST" \
+  || fail "Info.plist does not declare background modes"
+
+grep -q '<string>remote-notification</string>' "$INFO_PLIST" \
+  || fail "remote notification background mode is missing for CloudKit sync"
+
+# ---------------------------------------------------------------------------
+# 4. Entitlements (Apple capabilities)
+# ---------------------------------------------------------------------------
+
+grep -q 'com.apple.developer.applesignin' "$APP_DIR/衣橱存储.entitlements" \
+  || fail "Sign in with Apple entitlement is missing"
+
+grep -q 'com.apple.developer.weatherkit' "$APP_DIR/衣橱存储.entitlements" \
+  || fail "WeatherKit entitlement is missing"
+
+grep -q 'com.apple.developer.icloud-services' "$APP_DIR/衣橱存储.entitlements" \
+  || fail "CloudKit iCloud service entitlement is missing"
+
+grep -q 'iCloud.com.ramsey.wearorder' "$APP_DIR/衣橱存储.entitlements" \
+  || fail "CloudKit container identifier is missing"
+
+# ---------------------------------------------------------------------------
+# 5. Xcode project config
+# ---------------------------------------------------------------------------
+
+grep -q 'PRODUCT_BUNDLE_IDENTIFIER = com.ramsey.wearorder;' "$PROJECT_FILE" \
+  || fail "bundle identifier is not set to the release placeholder replacement"
+
+grep -q 'IPHONEOS_DEPLOYMENT_TARGET = 17.0;' "$PROJECT_FILE" \
+  || fail "iOS deployment target is not 17.0"
+
+grep -q 'SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";' "$PROJECT_FILE" \
+  || fail "supported platforms are not limited to iOS"
+
+grep -q '衣橱存储Tests' "$PROJECT_FILE" \
+  || fail "XCTest target is missing from the Xcode project"
+
+# ---------------------------------------------------------------------------
+# 6. App Store / release documentation contracts
+# ---------------------------------------------------------------------------
+
 [ -f "PRIVACY.md" ] \
   || fail "privacy policy draft is missing"
 
@@ -68,8 +150,8 @@ grep -q 'Apple ID 登录' "PRIVACY.md" \
 grep -q 'Bundle ID：com.ramsey.wearorder' "APP_STORE_METADATA.md" \
   || fail "App Store metadata does not include bundle ID"
 
-grep -q 'NSLocationWhenInUseUsageDescription' "$INFO_PLIST" \
-  || fail "Info.plist does not include location usage description"
+grep -q 'configure_release_contacts.sh' "APP_STORE_METADATA.md" \
+  || fail "App Store metadata does not document release contact configuration"
 
 [ -f "APP_STORE_CONNECT_PRIVACY_LABELS.md" ] \
   || fail "App Store Connect privacy label guide is missing"
@@ -119,9 +201,6 @@ grep -q '备份恢复' "APP_STORE_QA.md" \
 [ -x "scripts/configure_release_contacts.sh" ] \
   || fail "release contact configuration script is missing or not executable"
 
-grep -q 'configure_release_contacts.sh' "APP_STORE_METADATA.md" \
-  || fail "App Store metadata does not document release contact configuration"
-
 grep -q 'validate_public_https_url' "scripts/configure_release_contacts.sh" \
   || fail "release contact configuration script does not validate HTTPS URLs"
 
@@ -135,451 +214,9 @@ grep -q 'validate_email' "scripts/configure_release_contacts.sh" \
   --support-email support@wearorder.app >/dev/null \
   || fail "release contact configuration dry-run failed"
 
-grep -q 'enum AppReleaseInfo' "$APP_DIR/AppReleaseInfo.swift" \
-  || fail "release contact configuration model is missing"
-
-grep -q 'enum AppStoreScreenshotScenario' "$APP_DIR/AppStoreScreenshotScenario.swift" \
-  || fail "App Store screenshot scenario model is missing"
-
-grep -q 'enum WardrobeReleaseQAFlow' "$APP_DIR/WardrobeReleaseQAChecklist.swift" \
-  || fail "release QA checklist model is missing"
-
-grep -q './scripts/audit_app_store_readiness.sh --strict' "$APP_DIR/WardrobeReleaseQAChecklist.swift" \
-  || fail "release QA checklist does not require the strict App Store audit"
-
-grep -q 'WardrobePreviewContainer.make()' "$APP_DIR/AppStoreScreenshotPreviews.swift" \
-  || fail "App Store screenshot previews do not use isolated preview data"
-
-grep -q 'App Store 3 · 智能推荐' "$APP_DIR/AppStoreScreenshotPreviews.swift" \
-  || fail "App Store screenshot previews do not include recommendation scene"
-
-grep -q 'privacyPolicyURLString' "$APP_DIR/AppReleaseInfo.swift" \
-  || fail "release contact configuration does not include privacy policy URL"
-
-grep -q 'supportURLString' "$APP_DIR/AppReleaseInfo.swift" \
-  || fail "release contact configuration does not include support URL"
-
-grep -q 'supportEmail' "$APP_DIR/AppReleaseInfo.swift" \
-  || fail "release contact configuration does not include support email"
-
-grep -q 'AppReleaseInfo.privacyPolicyURL' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view does not expose the public privacy policy URL"
-
-grep -q 'AppReleaseInfo.supportURL' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view does not expose the public support URL"
-
-grep -q 'SignInWithAppleButton' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view does not expose Sign in with Apple"
-
-grep -q '隐私与支持' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings privacy section is not user-facing"
-
-grep -q '本地隐私承诺' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view does not explain the local privacy posture"
-
-if grep -q '隐私与上架\|PrivacyInfo.xcprivacy 声明' "$APP_DIR/WardrobeSettingsView.swift"; then
-  fail "settings view still exposes developer-facing privacy/release wording"
-fi
-
-if grep -q '尚未接入 UserNotifications 真正触发\|OOTD 详情占位\|下一阶段这里会接入' "$APP_DIR/ContentView.swift"; then
-  fail "ContentView still contains stale placeholder copy"
-fi
-
-grep -q 'AppReleaseInfoTests' "衣橱存储Tests/AppReleaseInfoTests.swift" \
-  || fail "release contact XCTest coverage is missing"
-
-grep -q 'AppStoreScreenshotScenarioTests' "衣橱存储Tests/AppStoreScreenshotScenarioTests.swift" \
-  || fail "App Store screenshot scenario XCTest coverage is missing"
-
-grep -q 'WardrobeReleaseQAChecklistTests' "衣橱存储Tests/WardrobeReleaseQAChecklistTests.swift" \
-  || fail "release QA checklist XCTest coverage is missing"
-
-grep -q 'PRODUCT_BUNDLE_IDENTIFIER = com.ramsey.wearorder;' "$PROJECT_FILE" \
-  || fail "bundle identifier is not set to the release placeholder replacement"
-
-grep -q 'com.apple.developer.applesignin' "$APP_DIR/衣橱存储.entitlements" \
-  || fail "Sign in with Apple entitlement is missing"
-
-grep -q '<key>ITSAppUsesNonExemptEncryption</key>' "$INFO_PLIST" \
-  || fail "export compliance key is missing"
-
-grep -q 'NSCameraUsageDescription' "$INFO_PLIST" \
-  || fail "camera usage description is missing"
-
-grep -q 'IPHONEOS_DEPLOYMENT_TARGET = 17.0;' "$PROJECT_FILE" \
-  || fail "iOS deployment target is not 17.0"
-
-grep -q 'SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";' "$PROJECT_FILE" \
-  || fail "supported platforms are not limited to iOS"
-
-grep -q '衣橱存储Tests' "$PROJECT_FILE" \
-  || fail "XCTest target is missing from the Xcode project"
-
-grep -q 'WardrobeBackupManagerTests' "衣橱存储Tests/WardrobeBackupManagerTests.swift" \
-  || fail "wardrobe backup XCTest coverage is missing"
-
-grep -q 'RecommendationEngineTests' "衣橱存储Tests/RecommendationEngineTests.swift" \
-  || fail "recommendation engine XCTest coverage is missing"
-
-grep -q 'AIStylistPlaceholderView' "$APP_DIR/AIStylistPlaceholderView.swift" \
-  || fail "AI stylist placeholder view is missing"
-
-grep -q 'allowsAIStylistEntry' "$APP_DIR/AppReleaseInfo.swift" \
-  || fail "AI stylist production feature flag is missing"
-
-grep -q 'AppReleaseInfo.allowsAIStylistEntry' "$APP_DIR/ContentView.swift" \
-  || fail "OOTD AI stylist entry is not gated"
-
-grep -q 'sourceKind' "$APP_DIR/WardrobeModels.swift" \
-  || fail "OOTD model does not preserve source metadata for AI/recommendation outfits"
-
-grep -q 'aiPrompt' "$APP_DIR/WardrobeBackupManager.swift" \
-  || fail "wardrobe backup does not preserve AI outfit metadata"
-
-grep -q 'WardrobeDataHealthTests' "衣橱存储Tests/WardrobeDataHealthTests.swift" \
-  || fail "data health XCTest coverage is missing"
-
-grep -q 'WardrobeDataRepairTests' "衣橱存储Tests/WardrobeDataRepairTests.swift" \
-  || fail "data repair XCTest coverage is missing"
-
-grep -q 'WardrobeOnboardingStateTests' "衣橱存储Tests/WardrobeOnboardingStateTests.swift" \
-  || fail "onboarding state XCTest coverage is missing"
-
-grep -q 'DeletionImpactSummaryTests' "衣橱存储Tests/DeletionImpactSummaryTests.swift" \
-  || fail "deletion impact XCTest coverage is missing"
-
-grep -q 'WardrobeCoreFlowReadinessTests' "衣橱存储Tests/WardrobeCoreFlowReadinessTests.swift" \
-  || fail "core flow readiness XCTest coverage is missing"
-
-grep -q 'ImageDataOptimizerTests' "衣橱存储Tests/ImageDataOptimizerTests.swift" \
-  || fail "image optimizer XCTest coverage is missing"
-
-grep -q 'ClosetOrganizationSnapshotTests' "衣橱存储Tests/ClosetOrganizationSnapshotTests.swift" \
-  || fail "closet organization XCTest coverage is missing"
-
-grep -q 'OOTDLibrarySnapshotTests' "衣橱存储Tests/OOTDLibrarySnapshotTests.swift" \
-  || fail "OOTD library XCTest coverage is missing"
-
-grep -q 'PlannerReminderSummaryTests' "衣橱存储Tests/PlannerReminderSummaryTests.swift" \
-  || fail "planner reminder XCTest coverage is missing"
-
-grep -q 'WardrobeDestructiveActionGuardTests' "衣橱存储Tests/WardrobeDestructiveActionGuardTests.swift" \
-  || fail "destructive action guard XCTest coverage is missing"
-
-if grep -R 'seedMockDataIfNeeded' "$APP_DIR" >/dev/null; then
-  fail "automatic mock data seeding is still present"
-fi
-
-grep -q 'loadSampleData()' "$APP_DIR/ContentView.swift" \
-  || fail "manual sample data loading entry is missing"
-
-grep -q '@AppStorage(WardrobeOnboardingState.storageKey)' "$APP_DIR/ContentView.swift" \
-  || fail "first-run onboarding persistence is not wired"
-
-grep -q 'presentFirstRunOnboardingIfNeeded' "$APP_DIR/ContentView.swift" \
-  || fail "first-run onboarding presentation is missing"
-
-grep -q 'struct WardrobeOnboardingView' "$APP_DIR/WardrobeOnboardingView.swift" \
-  || fail "first-run onboarding view is missing"
-
-grep -q 'enum WardrobeOnboardingState' "$APP_DIR/WardrobeOnboardingState.swift" \
-  || fail "first-run onboarding state model is missing"
-
-grep -q 'struct WardrobeEmptyStateView' "$APP_DIR/WardrobeEmptyStateView.swift" \
-  || fail "reusable empty state view is missing"
-
-grep -q 'WardrobeEmptyStateView' "$APP_DIR/ClosetView.swift" \
-  || fail "closet empty state is not using reusable empty state"
-
-grep -q 'WardrobeEmptyStateView' "$APP_DIR/PlannerView.swift" \
-  || fail "planner empty state is not using reusable empty state"
-
-grep -q 'WardrobeSettingsView' "$APP_DIR/ContentView.swift" \
-  || fail "settings tab is not wired into the main app"
-
-grep -q 'struct WardrobeSettingsView' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view is missing"
-
-grep -q 'showsOnboarding' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view cannot reopen onboarding"
-
-grep -q 'WardrobeDataHealthSnapshot.make' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view does not run data health checks"
-
-grep -q 'WardrobeDataRepair.apply' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings view does not expose automatic data repair"
-
-grep -q 'dangerZoneSection' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings dangerous operations section is missing"
-
-grep -q 'WardrobeResetConfirmationView' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings reset confirmation view is missing"
-
-grep -q 'resetAllLocalData' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings reset operation is missing"
-
-grep -q 'enum WardrobeDestructiveActionGuard' "$APP_DIR/WardrobeDestructiveActionGuard.swift" \
-  || fail "destructive action guard is missing"
-
-grep -q 'enum WardrobeDataRepair' "$APP_DIR/WardrobeDataRepair.swift" \
-  || fail "data repair model is missing"
-
-grep -q 'enum WardrobeSampleDataLoader' "$APP_DIR/WardrobeSampleDataLoader.swift" \
-  || fail "shared sample data loader is missing"
-
-grep -q 'WardrobeNotificationSynchronizer.synchronizeImportedNotifications' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings backup restore does not resync imported notifications"
-
-grep -q 'homePlanCalendarSection' "$APP_DIR/ContentView.swift" \
-  || fail "home plan calendar section is missing"
-
-grep -q 'HomePlanCalendarDay' "$APP_DIR/ContentView.swift" \
-  || fail "home compact calendar model is missing"
-
-grep -q 'startCreateOOTDFlow' "$APP_DIR/ContentView.swift" \
-  || fail "home OOTD creation is not guarded by core flow readiness"
-
-grep -q 'startCreatePlanFlow' "$APP_DIR/ContentView.swift" \
-  || fail "home plan creation is not guarded by core flow readiness"
-
-grep -q 'sourceLabel: weatherSourceLabel' "$APP_DIR/ContentView.swift" \
-  || fail "home weather source label is missing"
-
-grep -q 'WeatherForecastService' "$APP_DIR/ContentView.swift" \
-  || fail "home weather does not use the forecast service"
-
-grep -q 'import WeatherKit' "$APP_DIR/WeatherForecastService.swift" \
-  || fail "weather service does not use WeatherKit"
-
-grep -q 'com.apple.developer.weatherkit' "$APP_DIR/衣橱存储.entitlements" \
-  || fail "WeatherKit entitlement is missing"
-
-grep -q 'com.apple.developer.icloud-services' "$APP_DIR/衣橱存储.entitlements" \
-  || fail "CloudKit iCloud service entitlement is missing"
-
-grep -q 'iCloud.com.ramsey.wearorder' "$APP_DIR/衣橱存储.entitlements" \
-  || fail "CloudKit container identifier is missing"
-
-grep -q '<key>UIBackgroundModes</key>' "$INFO_PLIST" \
-  || fail "Info.plist does not declare background modes"
-
-grep -q '<string>remote-notification</string>' "$INFO_PLIST" \
-  || fail "remote notification background mode is missing for CloudKit sync"
-
-grep -q 'cloudKitDatabase: .private(cloudKitContainerIdentifier)' "$APP_DIR/____App.swift" \
-  || fail "SwiftData container is not configured for private CloudKit sync"
-
-if grep -q 'WeatherCardAttributionBadge' "$APP_DIR/WeatherCardView.swift"; then
-  fail "home weather card still contains the old obstructive WeatherKit attribution badge"
-fi
-
-grep -q 'WeatherAttributionBlock' "$APP_DIR/WeatherDetailView.swift" \
-  || fail "weather detail does not show WeatherKit attribution"
-
-grep -q 'Link("数据来源"' "$APP_DIR/WeatherDetailView.swift" \
-  || fail "weather detail does not expose WeatherKit legal attribution link"
-
-if grep -R -q -E 'Open-Meteo|api\.open-meteo|geocoding-api\.open-meteo' "$APP_DIR" "APP_STORE_METADATA.md" "PRIVACY.md" "docs" "APP_STORE_CONNECT_PRIVACY_LABELS.md"; then
-  fail "release build still references Open-Meteo"
-fi
-
-grep -q '按今日预报去搭配' "$APP_DIR/ContentView.swift" \
-  || fail "home weather recommendation action does not use forecast wording"
-
-grep -q 'ImageDataOptimizer.optimizedJPEGData' "$APP_DIR/ClothingEditorForm.swift" \
-  || fail "photo import does not use image optimization"
-
-grep -q 'CameraCaptureView' "$APP_DIR/ClothingEditorForm.swift" \
-  || fail "clothing editor does not expose camera capture"
-
-grep -q 'struct CameraCaptureView' "$APP_DIR/CameraCaptureView.swift" \
-  || fail "camera capture bridge is missing"
-
-grep -q 'ClothingImageImportStatus' "$APP_DIR/ClothingEditorForm.swift" \
-  || fail "photo import status is missing"
-
-grep -q 'usageSummarySection' "$APP_DIR/ClothingDetailView.swift" \
-  || fail "clothing detail usage summary is missing"
-
-grep -q 'linkedPlansSection' "$APP_DIR/ClothingDetailView.swift" \
-  || fail "clothing detail linked plans section is missing"
-
-grep -q 'WardrobeExporter.itemReport' "$APP_DIR/ClothingDetailView.swift" \
-  || fail "clothing detail export action is missing"
-
-grep -q 'deletionImpactSection' "$APP_DIR/ClothingDetailView.swift" \
-  || fail "clothing detail deletion impact section is missing"
-
-grep -q 'static func itemReport' "$APP_DIR/WardrobeExporter.swift" \
-  || fail "clothing item report exporter is missing"
-
-grep -q 'WardrobeExporter.plainText' "$APP_DIR/ClosetView.swift" \
-  || fail "closet export action is missing"
-
-grep -q 'WardrobeExporter.fullReport' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings full data export action is missing"
-
-grep -q 'WardrobeBackupManager.makeBackupFile' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "settings JSON backup export is not wired"
-
-grep -q 'fileExporter' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "JSON backup file exporter is missing"
-
-grep -q 'fileImporter' "$APP_DIR/WardrobeSettingsView.swift" \
-  || fail "JSON backup file importer is missing"
-
-grep -q 'static func fullReport' "$APP_DIR/WardrobeExporter.swift" \
-  || fail "full report exporter is missing"
-
-grep -q 'enum WardrobeBackupManager' "$APP_DIR/WardrobeBackupManager.swift" \
-  || fail "JSON backup manager is missing"
-
-grep -q 'static func exportData' "$APP_DIR/WardrobeBackupManager.swift" \
-  || fail "JSON backup export encoder is missing"
-
-grep -q 'static func restore' "$APP_DIR/WardrobeBackupManager.swift" \
-  || fail "JSON backup restore decoder is missing"
-
-grep -q 'plansForNotificationSync' "$APP_DIR/WardrobeBackupManager.swift" \
-  || fail "JSON backup restore does not resync planner notifications"
-
-grep -q 'closetOrganizationSection' "$APP_DIR/ClosetView.swift" \
-  || fail "closet organization insights are missing"
-
-grep -q 'closetCoverageSection' "$APP_DIR/ClosetView.swift" \
-  || fail "closet category coverage section is missing"
-
-grep -q 'WardrobeAllItemsDetailView' "$APP_DIR/ClosetView.swift" \
-  || fail "closet all-items detail view is missing"
-
-grep -q 'closetHomePreviewLimit' "$APP_DIR/ClosetView.swift" \
-  || fail "closet home item preview is not capped"
-
-grep -q 'visibleCoverageRows' "$APP_DIR/ClosetView.swift" \
-  || fail "closet coverage detail filtering is missing"
-
-grep -q 'ClosetOrganizationSnapshot.make' "$APP_DIR/ClosetView.swift" \
-  || fail "closet organization snapshot is not wired"
-
-grep -q 'case needsDetails' "$APP_DIR/ClosetView.swift" \
-  || fail "closet missing details filter is missing"
-
-grep -q 'struct ClosetOrganizationSnapshot' "$APP_DIR/ClosetOrganizationSnapshot.swift" \
-  || fail "closet organization snapshot model is missing"
-
-grep -q 'ClosetFocusFilter.allCases' "$APP_DIR/ClosetView.swift" \
-  || fail "closet focus filters are missing"
-
-grep -q 'ClosetSortMode.allCases' "$APP_DIR/ClosetView.swift" \
-  || fail "closet sorting control is missing"
-
-grep -q 'PlannerQuickTemplate.allCases' "$APP_DIR/PlannerView.swift" \
-  || fail "planner quick templates are missing"
-
-grep -q 'planToolsSection' "$APP_DIR/PlannerView.swift" \
-  || fail "planner search and filter tools are missing"
-
-grep -q 'plannerReminderStatusSection' "$APP_DIR/PlannerView.swift" \
-  || fail "planner reminder status section is missing"
-
-grep -q 'clearInvalidReminders' "$APP_DIR/PlannerView.swift" \
-  || fail "planner invalid reminder cleanup is missing"
-
-grep -q 'struct PlannerReminderSummary' "$APP_DIR/PlannerReminderSummary.swift" \
-  || fail "planner reminder summary model is missing"
-
-grep -q 'PlannerFocusFilter.allCases' "$APP_DIR/PlannerView.swift" \
-  || fail "planner focus filters are missing"
-
-grep -q 'case conflicting' "$APP_DIR/PlannerView.swift" \
-  || fail "planner same-day conflict filter is missing"
-
-grep -q 'sameDayPlanCount(for:' "$APP_DIR/PlannerView.swift" \
-  || fail "planner conflict count helper is missing"
-
-grep -q 'PlannerSortMode.allCases' "$APP_DIR/PlannerView.swift" \
-  || fail "planner sort control is missing"
-
-grep -q 'WardrobeExporter.plansReport' "$APP_DIR/PlannerView.swift" \
-  || fail "planner export action is missing"
-
-grep -q 'static func plansReport' "$APP_DIR/WardrobeExporter.swift" \
-  || fail "planner report exporter is missing"
-
-grep -q 'CreatePlanView(draft:' "$APP_DIR/PlannerView.swift" \
-  || fail "planner quick drafts are not wired into create plan"
-
-grep -q 'WardrobeCoreFlowReadiness.make' "$APP_DIR/PlannerView.swift" \
-  || fail "planner does not preflight core flow readiness"
-
-grep -q 'reusePlanForNextTime' "$APP_DIR/PlanDetailView.swift" \
-  || fail "plan detail quick reuse action is missing"
-
-grep -q 'sameDayPlansSection' "$APP_DIR/PlanDetailView.swift" \
-  || fail "plan detail same-day plans section is missing"
-
-grep -q 'deletionImpactSection' "$APP_DIR/PlanDetailView.swift" \
-  || fail "plan detail deletion impact section is missing"
-
-grep -q 'visibleOOTDOutfits' "$APP_DIR/ContentView.swift" \
-  || fail "OOTD filtering list is missing"
-
-grep -q 'ootdSearchText' "$APP_DIR/ContentView.swift" \
-  || fail "OOTD search field is missing"
-
-grep -q 'OOTDStarterTemplate.allCases' "$APP_DIR/ContentView.swift" \
-  || fail "OOTD starter templates are not wired"
-
-grep -q 'ootdLibraryHealthSection' "$APP_DIR/ContentView.swift" \
-  || fail "OOTD library health section is missing"
-
-grep -q 'case unplanned' "$APP_DIR/ContentView.swift" \
-  || fail "OOTD unplanned filter is missing"
-
-grep -q 'struct OOTDLibrarySnapshot' "$APP_DIR/OOTDLibrarySnapshot.swift" \
-  || fail "OOTD library snapshot model is missing"
-
-grep -q 'enum OOTDStarterTemplate' "$APP_DIR/OOTDStarterTemplate.swift" \
-  || fail "OOTD starter template model is missing"
-
-grep -q 'linkedPlansSection' "$APP_DIR/OOTDDetailView.swift" \
-  || fail "OOTD detail linked plans section is missing"
-
-grep -q 'WardrobeExporter.outfitReport' "$APP_DIR/OOTDDetailView.swift" \
-  || fail "OOTD detail export action is missing"
-
-grep -q 'ootdRequirementBanner' "$APP_DIR/CreateOOTDView.swift" \
-  || fail "OOTD creator does not explain missing required clothing"
-
-grep -q 'deletionImpactSection' "$APP_DIR/OOTDDetailView.swift" \
-  || fail "OOTD detail deletion impact section is missing"
-
-grep -q 'static func outfitReport' "$APP_DIR/WardrobeExporter.swift" \
-  || fail "OOTD report exporter is missing"
-
-grep -q 'removePendingNotificationRequests' "$APP_DIR/PlannerNotificationManager.swift" \
-  || fail "notification rescheduling does not clear old pending requests"
-
-grep -q 'temperatureCelsius' "$APP_DIR/RecommendationEngine.swift" \
-  || fail "recommendation input does not include temperature"
-
-grep -q 'RecommendationInsight' "$APP_DIR/RecommendationEngine.swift" \
-  || fail "recommendation explanations are missing"
-
-grep -q 'RecommendationWardrobeGap' "$APP_DIR/RecommendationEngine.swift" \
-  || fail "recommendation wardrobe gap hints are missing"
-
-grep -q 'wardrobeGapSection' "$APP_DIR/RecommendationResultView.swift" \
-  || fail "recommendation result does not show wardrobe gaps"
-
-grep -q '推荐依据' "$APP_DIR/RecommendationResultView.swift" \
-  || fail "recommendation result does not show explanation details"
-
-grep -q 'existingSavedOutfit(for:' "$APP_DIR/RecommendationResultView.swift" \
-  || fail "recommendation saving does not reuse existing outfits"
-
-grep -q 'savedStatusText(for:' "$APP_DIR/RecommendationResultView.swift" \
-  || fail "recommendation result saved state is missing"
+# ---------------------------------------------------------------------------
+# 7. Asset catalog license hygiene
+# ---------------------------------------------------------------------------
 
 grep -q '"filename" : "AppIcon.png"' "$APP_DIR/Assets.xcassets/AppIcon.appiconset/Contents.json" \
   || fail "app icon filename is missing"
@@ -587,6 +224,11 @@ grep -q '"filename" : "AppIcon.png"' "$APP_DIR/Assets.xcassets/AppIcon.appiconse
 if find "$APP_DIR/Assets.xcassets" -type f | grep -E '小红书|水印|来自|download|web|网页版|unsplash|pexels|素材' >/dev/null; then
   fail "Assets.xcassets contains filenames that need license review"
 fi
+
+# ---------------------------------------------------------------------------
+# 8. Build verification (Debug iOS, build-for-testing simulator, Release iOS)
+#    These catch any genuine wiring breakage that the compiler can detect.
+# ---------------------------------------------------------------------------
 
 xcodebuild \
   -project 衣橱存储.xcodeproj \

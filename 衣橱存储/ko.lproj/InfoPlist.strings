@@ -1,5 +1,5 @@
-"CFBundleDisplayName" = "WardrobeOS";
-"CFBundleName" = "WardrobeOS";
+"CFBundleDisplayName" = "WearOrder";
+"CFBundleName" = "WearOrder";
 "NSCameraUsageDescription" = "의류 사진을 촬영해 로컬 옷장에 저장하기 위해 사용합니다. 사진은 이 기기에만 저장됩니다.";
 "NSPhotoLibraryUsageDescription" = "의류 사진을 선택해 로컬 옷장에 저장하기 위해 사용합니다. 사진은 이 기기에만 저장됩니다.";
 "NSLocationWhenInUseUsageDescription" = "현재 위치의 날씨 예보를 가져오고 날씨와 기온에 맞는 코디 추천을 만들기 위해 사용합니다.";
