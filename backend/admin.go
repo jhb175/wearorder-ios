@@ -133,7 +133,7 @@ func (a *App) handleAdminLoginPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "create session: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	setSessionCookie(w, sess.Token, sess.ExpiresAt)
+	setSessionCookie(w, r, sess.Token, sess.ExpiresAt)
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
 
@@ -141,7 +141,7 @@ func (a *App) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookieName); err == nil {
 		_ = a.Store.DeleteSession(c.Value)
 	}
-	clearSessionCookie(w)
+	clearSessionCookie(w, r)
 	http.Redirect(w, r, "/admin/login", http.StatusFound)
 }
 

@@ -57,26 +57,47 @@ func (a *App) loadAdmin(r *http.Request) (*AdminAccount, error) {
 	return a.Store.GetAdminByID(sess.AdminID)
 }
 
-func setSessionCookie(w http.ResponseWriter, token string, expiresAt int64) {
+func setSessionCookie(w http.ResponseWriter, r *http.Request, token string, expiresAt int64) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
 		Path:     "/admin",
 		HttpOnly: true,
-		Secure:   true, // production: served over HTTPS via Nginx
+		// Auto-detect: only flag Secure when the request itself came
+		// in via HTTPS (direct TLS or behind a reverse proxy that
+		// forwards X-Forwarded-Proto). Hardcoding `true` breaks
+		// HTTP-only internal deployments — browsers silently drop
+		// Secure cookies over plain HTTP and the user gets stuck in
+		// a login loop.
+		Secure:   isSecureRequest(r),
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Unix(expiresAt, 0),
 	})
 }
 
-func clearSessionCookie(w http.ResponseWriter) {
+func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
 		Path:     "/admin",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   isSecureRequest(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
+}
+
+// isSecureRequest tells whether the request came in over HTTPS, either
+// directly (r.TLS set) or through a reverse proxy that set
+// X-Forwarded-Proto. Used to flip the Secure cookie attribute on or
+// off — so internal HTTP testing works AND production HTTPS deploys
+// stay safe without any config flag.
+func isSecureRequest(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
+		return true
+	}
+	return false
 }
