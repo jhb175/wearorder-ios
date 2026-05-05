@@ -73,7 +73,7 @@ struct WeatherPrecipitationSystem: View {
         for index in 0..<count {
             let normalized = CGFloat(index) / CGFloat(max(count - 1, 1))
             let xBase = xStart + normalized * xSpan
-            let x = size.width * xBase + CGFloat(sin(time * 0.32 + Double(index) * 0.4)) * sway
+            let x = size.width * xBase + CGFloat(sin(time * 0.6 + Double(index) * 0.4)) * sway
 
             let cycle = size.height + 80
             let stagger = Double(index) * 23.7
@@ -149,9 +149,13 @@ struct WeatherPrecipitationSystem: View {
             let depth: CGFloat = 0.34 + 0.66 * CGFloat(hash(5))
 
             let cycle = Double(size.height) + 80
-            let yRaw = time * 60 * speed * Double(depth)
+            // Bumped fall speed: was 60*speed*depth (~10-28 px/s).
+            // Now 90*speed (constant base) + per-flake depth boost so closer
+            // flakes also fall faster, reading as real depth.
+            let fallSpeed = 90.0 * Double(speed) + 60.0 * Double(depth)
+            let yRaw = time * fallSpeed
             let y = CGFloat(yRaw.truncatingRemainder(dividingBy: cycle)) - 40
-            let xSway = CGFloat(sin(time * 0.42 * Double(depth) + phase)) * sway
+            let xSway = CGFloat(sin(time * 0.85 * Double(depth) + phase)) * sway
             let x = size.width * xNorm + xSway
 
             let effectiveRadius = radius * depth

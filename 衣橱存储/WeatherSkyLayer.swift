@@ -17,7 +17,7 @@ struct WeatherSkyLayer: View {
 
     private func drawSky(in context: GraphicsContext, size: CGSize) {
         // Gentle drift of the gradient origin so the sky never feels static
-        let drift = CGFloat(sin(time * 0.03)) * 12
+        let drift = CGFloat(sin(time * 0.20)) * 18
         context.fill(
             Path(CGRect(origin: .zero, size: size)),
             with: .linearGradient(
@@ -88,9 +88,10 @@ struct WeatherSkyLayer: View {
 
     private func drawSunRays(in context: GraphicsContext, center: CGPoint, visibility: Double) {
         let rayCount = 9
+        let rotation = time * 0.04 // very slow whole-disc rotation for life
         for index in 0..<rayCount {
-            let baseAngle = -90.0 + Double(index) * (360.0 / Double(rayCount))
-            let pulse = 0.78 + sin(time * 0.7 + Double(index) * 0.6) * 0.22
+            let baseAngle = -90.0 + Double(index) * (360.0 / Double(rayCount)) + rotation * (180 / .pi)
+            let pulse = 0.78 + sin(time * 1.4 + Double(index) * 0.6) * 0.22
             let length: CGFloat = 86 + CGFloat(index % 3) * 18
             let width: CGFloat = 10 + CGFloat(index % 2) * 6
 
@@ -154,8 +155,8 @@ struct WeatherSkyLayer: View {
     /// Sun position is upper-right of card, with very subtle drift.
     func sunCenter(in size: CGSize) -> CGPoint {
         CGPoint(
-            x: size.width * 0.78 + CGFloat(sin(time * 0.05)) * 5,
-            y: size.height * 0.22 + CGFloat(cos(time * 0.07)) * 4
+            x: size.width * 0.78 + CGFloat(sin(time * 0.24)) * 9,
+            y: size.height * 0.22 + CGFloat(cos(time * 0.32)) * 6
         )
     }
 }

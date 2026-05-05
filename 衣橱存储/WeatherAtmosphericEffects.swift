@@ -30,9 +30,9 @@ struct WeatherAtmosphericEffects: View {
         let bandCount = 5
         for index in 0..<bandCount {
             let phase = Double(index) * 1.4
-            let speed = 0.05 + Double(index) * 0.012
-            let driftX = CGFloat(sin(time * speed + phase)) * 38
-            let driftY = CGFloat(cos(time * speed * 0.7 + phase)) * 12
+            let speed = 0.22 + Double(index) * 0.04
+            let driftX = CGFloat(sin(time * speed + phase)) * 56
+            let driftY = CGFloat(cos(time * speed * 0.7 + phase)) * 14
 
             let bandY = size.height * (0.18 + CGFloat(index) * 0.14)
             let bandHeight = size.height * (0.18 + CGFloat(index) * 0.04)
@@ -77,7 +77,7 @@ struct WeatherAtmosphericEffects: View {
 
         for index in 0..<5 {
             let baseAngle = -42.0 + Double(index) * 21.0
-            let pulse = 0.78 + sin(time * 0.6 + Double(index) * 0.7) * 0.22
+            let pulse = 0.78 + sin(time * 1.2 + Double(index) * 0.7) * 0.22
             let coneLength: CGFloat = size.height * 0.96
             let coneSpread: CGFloat = 36 + CGFloat(index) * 6
 
@@ -117,9 +117,9 @@ struct WeatherAtmosphericEffects: View {
             let phase = Double(index) * 0.6
             let yNorm = Double(index) / Double(count - 1)
             let x = size.width * (0.46 + CGFloat(index) * 0.04)
-                + CGFloat(sin(time * 0.32 + phase)) * 22
+                + CGFloat(sin(time * 0.62 + phase)) * 28
             let y = size.height * (0.22 + CGFloat(yNorm) * 0.62)
-                + CGFloat(cos(time * 0.28 + phase)) * 8
+                + CGFloat(cos(time * 0.54 + phase)) * 12
             let radius: CGFloat = 1.0 + CGFloat(index % 3) * 0.6
 
             let alpha: Double
@@ -146,11 +146,14 @@ struct WeatherAtmosphericEffects: View {
         for index in 0..<10 {
             let yNorm = 0.18 + CGFloat(index) * 0.072
             let phase = Double(index) * 0.85
-            let driftX = CGFloat(sin(time * 0.48 + phase)) * 18
+            // Streaks travel: x cycles through full screen width once per
+            // ~6 seconds, so they read as wind blowing across the card.
+            let travel = (time * 1.4 + Double(index) * 0.42).truncatingRemainder(dividingBy: 1.0)
             let baseY = size.height * yNorm
             let length = size.width * (0.16 + CGFloat(index % 3) * 0.06)
 
-            let xStart = size.width * 0.32 + driftX
+            let xStart = -length + CGFloat(travel) * (size.width + length * 2)
+                + CGFloat(sin(time * 0.9 + phase)) * 8
 
             var path = Path()
             path.move(to: CGPoint(x: xStart, y: baseY))

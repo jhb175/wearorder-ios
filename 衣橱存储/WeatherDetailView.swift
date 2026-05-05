@@ -158,15 +158,18 @@ struct WeatherDetailView: View {
                         Text("\(day.low)°")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: true, vertical: false)
                         Capsule()
                             .fill(LinearGradient(
                                 colors: [.blue.opacity(0.28), .orange.opacity(0.48)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             ))
-                            .frame(width: 78, height: 6)
+                            .frame(minWidth: 36, maxWidth: 68, idealHeight: 6)
+                            .frame(height: 6)
                         Text("\(day.high)°")
                             .font(.subheadline.weight(.bold))
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)

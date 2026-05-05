@@ -46,8 +46,8 @@ struct WeatherCloudSystem: View {
 
     private func drawHeroOccluder(in context: GraphicsContext, size: CGSize) {
         let center = CGPoint(
-            x: size.width * 0.74 + CGFloat(sin(time * 0.04)) * 4,
-            y: size.height * 0.26 + CGFloat(cos(time * 0.05)) * 3
+            x: size.width * 0.74 + CGFloat(sin(time * 0.22)) * 18,
+            y: size.height * 0.26 + CGFloat(cos(time * 0.28)) * 9
         )
 
         // Slightly warm underbelly: sun behind the cloud catches the
@@ -277,17 +277,17 @@ struct WeatherCloudSystem: View {
 
         var speed: Double {
             switch self {
-            case .far: 0.04
-            case .mid: 0.07
-            case .near: 0.12
+            case .far: 0.22
+            case .mid: 0.34
+            case .near: 0.48
             }
         }
 
         var amplitude: CGFloat {
             switch self {
-            case .far: 0.018
-            case .mid: 0.026
-            case .near: 0.034
+            case .far: 0.07
+            case .mid: 0.10
+            case .near: 0.13
             }
         }
 
