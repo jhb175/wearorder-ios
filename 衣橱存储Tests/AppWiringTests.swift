@@ -108,6 +108,7 @@ final class AppWiringTests: XCTestCase {
             WardrobeReleaseQAFlow.self,
             // Image storage
             WardrobeImageFileStore.self,
+            WardrobeInlineImageMigrator.self,
             // Notifications
             PlannerNotificationManager.self,
             // Diagnostics

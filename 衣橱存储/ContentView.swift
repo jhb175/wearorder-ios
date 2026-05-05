@@ -948,6 +948,8 @@ struct ContentView: View {
 
         await Task.yield()
 
+        WardrobeInlineImageMigrator.migrate(items: items)
+
         do {
             try await Task.sleep(for: .milliseconds(550))
         } catch {
