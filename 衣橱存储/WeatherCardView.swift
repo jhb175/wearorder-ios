@@ -11,7 +11,11 @@ struct WeatherCardView: View {
     var body: some View {
         ZStack {
             glassBaseLayer
-            WeatherAtmosphereLayer(weather: displayWeather, isAnimationActive: isAnimationActive)
+            WeatherAtmosphereLayer(
+                weather: displayWeather,
+                isAnimationActive: isAnimationActive,
+                windSpeedKPH: weather?.windSpeed
+            )
             leftSafetyVeil
             bottomFogLayer
             glassHighlightLayer
@@ -304,10 +308,15 @@ struct WeatherCardView: View {
 private struct WeatherAtmosphereLayer: View {
     let weather: HomeDashboardViewModel.WeatherSnapshot
     let isAnimationActive: Bool
+    let windSpeedKPH: Int?
 
     var body: some View {
         ZStack {
-            WeatherScene(kind: weather.kind, isActive: isAnimationActive)
+            WeatherScene(
+                kind: weather.kind,
+                windSpeedKPH: windSpeedKPH,
+                isActive: isAnimationActive
+            )
 
             LinearGradient(
                 colors: [

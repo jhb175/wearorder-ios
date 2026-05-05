@@ -13,6 +13,7 @@ struct WeatherScene: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let kind: HomeDashboardViewModel.WeatherKind
+    var windSpeedKPH: Int? = nil
     var isActive: Bool = true
 
     var body: some View {
@@ -30,7 +31,7 @@ struct WeatherScene: View {
     }
 
     private func composedScene(time: TimeInterval) -> some View {
-        let palette = WeatherScenePalette(kind: kind)
+        let palette = WeatherScenePalette(kind: kind, windSpeedKPH: windSpeedKPH)
         return ZStack {
             WeatherSkyLayer(palette: palette, time: time)
             WeatherCloudSystem(palette: palette, time: time)

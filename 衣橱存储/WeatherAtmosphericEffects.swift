@@ -143,12 +143,19 @@ struct WeatherAtmosphericEffects: View {
     // MARK: - Wind streaks
 
     private func drawWindStreaks(in context: GraphicsContext, size: CGSize) {
-        for index in 0..<10 {
-            let yNorm = 0.18 + CGFloat(index) * 0.072
+        let intensity = palette.windStreakIntensity
+        // 4 streaks (just-noticeable wind) → 16 streaks (gale).
+        let streakCount = max(4, Int((intensity * 12).rounded()) + 4)
+        // Travel speed maps 0.6/s (gentle) → 2.0/s (strong).
+        let travelRate = 0.6 + 1.4 * intensity
+        // Opacity rises with intensity so a light breeze is faint and a
+        // gale is unmistakable.
+        let baseAlpha = 0.18 + 0.18 * intensity
+
+        for index in 0..<streakCount {
+            let yNorm = 0.16 + CGFloat(index % streakCount) * (0.66 / CGFloat(max(streakCount - 1, 1)))
             let phase = Double(index) * 0.85
-            // Streaks travel: x cycles through full screen width once per
-            // ~6 seconds, so they read as wind blowing across the card.
-            let travel = (time * 1.4 + Double(index) * 0.42).truncatingRemainder(dividingBy: 1.0)
+            let travel = (time * travelRate + Double(index) * 0.42).truncatingRemainder(dividingBy: 1.0)
             let baseY = size.height * yNorm
             let length = size.width * (0.16 + CGFloat(index % 3) * 0.06)
 
@@ -167,7 +174,7 @@ struct WeatherAtmosphericEffects: View {
                 with: .linearGradient(
                     Gradient(colors: [
                         Color.white.opacity(0.0),
-                        Color.white.opacity(0.30),
+                        Color.white.opacity(baseAlpha),
                         Color.white.opacity(0.0)
                     ]),
                     startPoint: CGPoint(x: xStart, y: baseY),

@@ -42,8 +42,12 @@ struct WeatherDetailView: View {
 
     private var heroCard: some View {
         ZStack(alignment: .leading) {
-            WeatherScene(kind: displayWeather.kind, isActive: weather != nil)
-                .opacity(0.96)
+            WeatherScene(
+                kind: displayWeather.kind,
+                windSpeedKPH: weather?.windSpeed,
+                isActive: weather != nil
+            )
+            .opacity(0.96)
 
             LinearGradient(
                 colors: [

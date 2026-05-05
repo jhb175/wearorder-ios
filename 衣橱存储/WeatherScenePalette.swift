@@ -7,6 +7,15 @@ import SwiftUI
 /// reads it reacts together.
 struct WeatherScenePalette {
     let kind: HomeDashboardViewModel.WeatherKind
+    /// Actual wind speed in km/h. When supplied, drift speed and wind
+    /// streak density scale continuously with it instead of bucketing
+    /// every "windy" kind into one fixed visual.
+    let windSpeedKPH: Int?
+
+    init(kind: HomeDashboardViewModel.WeatherKind, windSpeedKPH: Int? = nil) {
+        self.kind = kind
+        self.windSpeedKPH = windSpeedKPH
+    }
 
     // MARK: - Sky
 
@@ -155,19 +164,41 @@ struct WeatherScenePalette {
 
     // MARK: - Wind
 
-    var windStreaks: Bool { kind == .windy }
+    /// Whether to render the directional wind streaks layer. Streaks
+    /// appear when the wind is strong enough to read as "wind blowing"
+    /// regardless of the underlying kind, OR when the kind is `.windy`.
+    var windStreaks: Bool {
+        if kind == .windy { return true }
+        if let speed = windSpeedKPH, speed >= 18 { return true }
+        return false
+    }
+
+    /// 0…1 normalized intensity of wind streaks: 0 = none, 1 = dense.
+    /// Linear ramp from 18 km/h (just appearing) to 50 km/h (saturated).
+    var windStreakIntensity: Double {
+        guard windStreaks else { return 0 }
+        let speed = Double(windSpeedKPH ?? (kind == .windy ? 30 : 0))
+        let normalized = (speed - 14.0) / 36.0
+        return max(0.18, min(1.0, normalized))
+    }
 
     /// Per-kind multiplier on the cloud system's base linear drift
-    /// speed. All cloud layers stream left-to-right; the multiplier
-    /// just controls how fast. Higher = more wind.
+    /// speed. When real `windSpeedKPH` is available, it overrides the
+    /// kind default with a continuous mapping so a 12 km/h breeze and
+    /// a 50 km/h gale read clearly differently.
     var cloudDriftMultiplier: Double {
+        if let speedKPH = windSpeedKPH {
+            // 0 km/h → 0.32 (almost still), 30 km/h → 1.0, 60+ → 1.30 cap.
+            let raw = Double(speedKPH) / 30.0
+            return max(0.32, min(1.30, raw))
+        }
         switch kind {
-        case .sunny, .partlyCloudy: 0.45
-        case .overcast, .drizzle: 0.60
-        case .snow: 0.50
-        case .heavyRain: 0.78
-        case .thunderstorm: 0.86
-        case .windy: 1.0
+        case .sunny, .partlyCloudy: return 0.45
+        case .overcast, .drizzle: return 0.60
+        case .snow: return 0.50
+        case .heavyRain: return 0.78
+        case .thunderstorm: return 0.86
+        case .windy: return 1.0
         }
     }
 
