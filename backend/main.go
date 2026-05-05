@@ -42,12 +42,14 @@ func main() {
 	}
 
 	rl := NewRateLimiter(store, cfg.RateLimitPerDay)
+	burst := NewBurstLimiter(cfg.BurstLimitPerMinute, time.Minute)
 
 	app := &App{
-		Config:    cfg,
-		Store:     store,
-		Providers: mgr,
-		RateLimit: rl,
+		Config:     cfg,
+		Store:      store,
+		Providers:  mgr,
+		RateLimit:  rl,
+		BurstLimit: burst,
 	}
 
 	mux := http.NewServeMux()
@@ -85,10 +87,11 @@ func main() {
 // App bundles the dependencies passed to every handler. Plain struct,
 // not an interface, because the handler boundary is internal-only.
 type App struct {
-	Config    *Config
-	Store     *Store
-	Providers *ProviderManager
-	RateLimit *RateLimiter
+	Config     *Config
+	Store      *Store
+	Providers  *ProviderManager
+	RateLimit  *RateLimiter
+	BurstLimit *BurstLimiter
 }
 
 func (a *App) RegisterRoutes(mux *http.ServeMux) {

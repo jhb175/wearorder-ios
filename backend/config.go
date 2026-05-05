@@ -20,6 +20,7 @@ type Config struct {
 	AdminInitialPassword string
 	SessionSecret        string
 	RateLimitPerDay      int
+	BurstLimitPerMinute  int
 	RequestTimeoutSec    int
 }
 
@@ -36,6 +37,7 @@ func LoadConfig(path string) (*Config, error) {
 		AdminInitialPassword: os.Getenv("ADMIN_INITIAL_PASSWORD"),
 		SessionSecret:        os.Getenv("SESSION_SECRET"),
 		RateLimitPerDay:      getenvInt("RATE_LIMIT_PER_DAY", 30),
+		BurstLimitPerMinute:  getenvInt("BURST_LIMIT_PER_MINUTE", 5),
 		RequestTimeoutSec:    getenvInt("REQUEST_TIMEOUT_SEC", 60),
 	}
 
